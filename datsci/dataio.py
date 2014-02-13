@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 '''
-Description     : Module to handle data files
+Description     : Module to handle data io
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2013.09.23
@@ -16,7 +16,9 @@ def reservoir_sample(iterable, k, rseed=None):
     '''
     Select k random elements from an iterable containing n elements
     into a list with equal probability, where n is large and unknown.
-    Enable repeable results with random seed rseed.
+
+    Allows repeable results with random seed rseed.
+
     Uses the reservoir sampling algorithm taken from the wikipedia article
     (http://en.wikipedia.org/wiki/Reservoir_sampling)
     '''
@@ -36,9 +38,10 @@ def reservoir_sample(iterable, k, rseed=None):
 def load_subset(f, k=None, sep=',', colnames=None, header=0, rseed=None):
     '''
     Load k rows from file into a dataframe from file of buffer f
+
     Setting colnames to a list will set that as the column name of the returned DataFrame object
-    Setting header to None will result in reading the entire file into the data frame as data,
-    not treating the first row of the file as column header
+
+    Setting header to None will result in reading the first row into the data frame as data instead of header
     '''
     # Read in entire file
     if k is None:
@@ -58,6 +61,3 @@ def load_subset(f, k=None, sep=',', colnames=None, header=0, rseed=None):
 
     return pd.DataFrame(reservoir_sample(reader, k, rseed=rseed),
                         columns=names)
-
-
-
