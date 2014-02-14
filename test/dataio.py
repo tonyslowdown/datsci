@@ -20,6 +20,12 @@ class TestIO(unittest.TestCase):
     Unit tests for the io module
     '''
 
+    def setUp(self):
+        '''
+        Set up test environment variables
+        '''
+        self.curdir = os.path.dirname(os.path.abspath(__file__))
+
     def test_reservoir_sample(self):
         '''
         Test reservoir sampling
@@ -49,7 +55,7 @@ class TestIO(unittest.TestCase):
         '''
 
         # Setup test parameters
-        sample_file = 'res/sample1.csv'
+        sample_file = os.path.join(self.curdir, 'res/sample1.csv')
         sample_file_length = 0
         for i,line in enumerate(open(sample_file, 'rU')):
             if i == 0:
@@ -155,7 +161,7 @@ class TestIO(unittest.TestCase):
         #===========================================================
         # Delimiters and rseed
 
-        sample_file_txt = 'res/sample1.txt'
+        sample_file_txt = os.path.join(self.curdir, 'res/sample1.txt')
 
         # sep = '\t', k = None
         df = dataio.load_subset(sample_file_txt, sep='\t')
