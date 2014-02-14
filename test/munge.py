@@ -4,8 +4,8 @@ Description     : Unit test for munge.py
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 
-Modified By     : 
+Last Modified   : 2014.02.14
+Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
 import os,sys
@@ -21,11 +21,44 @@ class TestMunge(unittest.TestCase):
     Unit tests for the munge module
     '''
 
+    def test_standardize_cols(self):
+        '''
+        Test standardizing df columns
+        '''
+        # Standardize all columns
+        df = pd.DataFrame([[1,200,400],
+                           [0,100,400],
+                           [1,200,500]])
+        df_std = munge.standardize_cols(df, cols=[0,1,2], ignore_binary=False)
+        std_vals = np.array([[ 0.70710678,  0.70710678, -0.70710678],
+                             [-1.41421356, -1.41421356, -0.70710678],
+                             [ 0.70710678,  0.70710678,  1.41421356]])
+        a1 = np.round(np.squeeze(df_std.values.reshape(np.multiply(*df_std.shape),1)), decimals=4)
+        a2 = np.round(np.squeeze(std_vals.reshape(9,1)), decimals=4)
+        self.assertTrue((a1 == a2).all())
+
+        # Standardize some of the columns only
+        df_std2 = munge.standardize_cols(df, cols=[0, 2], ignore_binary=False)
+        a1 = np.round(df_std2.values[:,[0,2]].reshape(6,1), decimals=4)
+        a2 = np.round(std_vals[:,[0,2]].reshape(6,1), decimals=4)
+        self.assertTrue((a1 == a2).all())
+        a1 = np.round(df_std2.values[:,1], decimals=4)
+        a2 = np.round(std_vals[:,1], decimals=4)
+        self.assertFalse((a1 == a2).any())
+
+        # Ignore binary values
+        df_std3 = munge.standardize_cols(df)
+        a1 = np.round(df_std3.values[:,1:].reshape(6,1), decimals=4)
+        a2 = np.round(std_vals[:,1:].reshape(6,1), decimals=4)
+        self.assertTrue((a1 == a2).all())
+        a1 = np.round(df_std3.values[:,0], decimals=4)
+        a2 = np.round(df.values[:,0], decimals=4)
+        self.assertTrue((a1 == a2).all())
+
     def test_scale_down(self):
         '''
         Test scaling down large numeric values represented as str
         '''
-        
         # Check 0 and negative mvleft parameter value
         self.assertRaises(ValueError, munge.scale_down, '123', mvleft=0)
         self.assertRaises(ValueError, munge.scale_down, '123', mvleft=-1)

@@ -4,20 +4,40 @@ Description     : Module to handle data munging/wrangling
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 
-Modified By     : 
+Last Modified   : 2014.02.14
+Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
 import numpy as np
 import pandas as pd
 import re
+import eda
+from sklearn import preprocessing
+
+def standardize_cols(df, cols=None, ignore_binary=True):
+    '''
+    Standardize selected columns of a df
+    if ignore_bingary is True, then do not standardize columns containing binary values
+    '''
+    # If cols is blank, use all columns in the dataframe
+    _cols = cols
+    if _cols is None:
+        _cols = df.columns
+
+    # Remove binary columns
+    if ignore_binary:
+        bc = set(eda.find_binary_cols(df))
+        _cols = [c for c in _cols if c not in bc]
+
+    df2 = df.copy(deep=True)
+    df2[_cols] = preprocessing.scale(df[_cols].values.astype(float))
+    return df2
 
 def scale_down(strval, mvleft=6):
     '''
     Scale down a string numeric value by moving the decimal to the left
     mvleft times
     '''
-
     # Raise error for negative mvleft values
     if mvleft < 1:
         raise ValueError('mvleft must be an integer greater than 0\n')
