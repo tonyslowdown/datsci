@@ -4,7 +4,7 @@ Description     : Unit test for munge.py
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.02.14
+Last Modified   : 2014.02.17
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -54,6 +54,104 @@ class TestMunge(unittest.TestCase):
         a1 = np.round(df_std3.values[:,0], decimals=4)
         a2 = np.round(df.values[:,0], decimals=4)
         self.assertTrue((a1 == a2).all())
+
+    def test_match_binary_labels(self):
+        '''
+        Test matching the number of rows based on the two y labels
+        '''
+        df = pd.DataFrame([[1, 0, 10.0,-1],
+                           [0, 1, 20.0, 1],
+                           [1, 1, 30.0,-1]],
+                          columns=['a','b','c','d'])
+
+        # Test that error is raised if ylabs parameter doesn't contain two unique values
+        self.assertRaises(ValueError, munge.match_binary_labels, df, 'a', ylabs=[], rseed=None)
+        self.assertRaises(ValueError, munge.match_binary_labels, df, 'a', ylabs=[1,2,3], rseed=None)
+        self.assertRaises(ValueError, munge.match_binary_labels, df, 'a', ylabs=[2,2], rseed=None)
+
+        # Test that error is raised if it's not a binary classification problem
+        self.assertRaises(ValueError, munge.match_binary_labels, df, 'c')
+
+        # Test that error is raised if the param y-labels are not the same found in the y labels column
+        self.assertRaises(ValueError, munge.match_binary_labels, df, 'a', ylabs=[1,2], rseed=None)
+        self.assertRaises(ValueError, munge.match_binary_labels, df, 'c', rseed=None)
+
+        # Test that when the two groups are the same size, the same df is returned
+        df = pd.DataFrame([[1, 0, 10.0,-1, 1],
+                           [0, 1, 20.0, 1, 0]],
+                          columns=['a','b','c','d','e'])
+        self.assertTrue((munge.match_binary_labels(df, 'e').values == df.values).all())
+        
+        # Test sampling from the bigger group to match the smaller group
+        df = pd.DataFrame([[1, 0, 10.0,-1, 1],
+                           [0, 1, 20.0, 1, 1],
+                           [1, 1, 30.0,-1, 1],
+                           [0, 0, 24.0,-1, 1],
+                           [1, 1, 50.0,-1 ,0],
+                           [0, 2, 60.0, 1 ,0]],
+                          columns=['a','b','c','d','e'])
+        df2 = munge.match_binary_labels(df, 'e')
+        self.assertEqual(df2.shape, (4,5))
+        self.assertEqual(len(df2[df2.e == 1]), len(df2[df2.e == 0]))
+
+        df = pd.DataFrame([[1, 0, 10.0,-1, 1],
+                           [0, 1, 20.0, 1, 1],
+                           [1, 1, 30.0,-1, 1],
+                           [0, 0, 24.0,-1, 1],
+                           [1, 0, 40.0,-1, 0],
+                           [1, 1, 50.0,-1 ,0],
+                           [0, 2, 60.0, 1 ,0]],
+                          columns=['a','b','c','d','e'])
+        df2 = munge.match_binary_labels(df, 'e')
+        self.assertEqual(df2.shape, (6,5))
+        self.assertEqual(len(df2[df2.e == 1]), len(df2[df2.e == 0]))
+
+        df = pd.DataFrame([[1, 0, 10.0,-1, 1],
+                           [0, 1, 20.0, 1, 1],
+                           [1, 1, 30.0,-1, 1],
+                           [1, 1, 23.0, 1, 1],
+                           [0, 0, None,-1, 1],
+                           [1, 0, 40.0,-1, 0],
+                           [1, 1, 50.0,-1 ,0],
+                           [0, 2, 60.0, 1 ,0]],
+                          columns=['a','b','c','d','e'])
+        df2 = munge.match_binary_labels(df, 'e')
+        self.assertTrue(df2.shape, (6,5))
+        self.assertTrue(df2.shape, df2.dropna().shape)
+        self.assertEqual(len(df2[df2.e == 1]), len(df2[df2.e == 0]))
+
+        # Test when removing NAs causes the resulting larger group to be equal in size to the smaller
+        df = pd.DataFrame([[1, 0, 10.0,-1, 1],
+                           [0, 1, 20.0, 1, 1],
+                           [1, 1, 30.0,-1, 1],
+                           [0, 0, None,-1, 1],
+                           [1, 0, 40.0,-1, 0],
+                           [1, 1, 50.0,-1 ,0],
+                           [0, 2, 60.0, 1 ,0]],
+                          columns=['a','b','c','d','e'])
+        df2 = pd.DataFrame([[1, 0, 10.0,-1, 1],
+                            [0, 1, 20.0, 1, 1],
+                            [1, 1, 30.0,-1, 1],
+                            [1, 0, 40.0,-1, 0],
+                            [1, 1, 50.0,-1 ,0],
+                            [0, 2, 60.0, 1 ,0]],
+                           columns=['a','b','c','d','e'])
+        self.assertTrue((munge.match_binary_labels(df, 'e').values == df2.values).all())
+
+        # Test that the bigger group (group of rows with y-label that are more sizable) will
+        # be reduced by first selecting the complete rows, then sampling randomly from the incomplete
+        df = pd.DataFrame([[1, 0, 10.0,-1, 1],
+                           [0, 1, 20.0, 1, 1],
+                           [1, None, 30.0,-1, 1],
+                           [0, 0, None,-1, 1],
+                           [1, 0, 40.0,-1, 0],
+                           [1, 1, 50.0,-1 ,0],
+                           [0, 2, 60.0, 1 ,0]],
+                          columns=['a','b','c','d','e'])
+        df2 = munge.match_binary_labels(df, 'e')
+        self.assertTrue(df2.shape, (6,5))
+        self.assertEqual(len(df2[df2.e == 1]), len(df2[df2.e == 0]))
+        self.assertTrue(df2.dropna().shape, (5,5))
 
     def test_scale_down(self):
         '''

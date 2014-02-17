@@ -4,12 +4,13 @@ Description     : Module to handle data munging/wrangling
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.02.14
+Last Modified   : 2014.02.17
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
 import numpy as np
 import pandas as pd
+import random
 import re
 import eda
 from sklearn import preprocessing
@@ -32,6 +33,72 @@ def standardize_cols(df, cols=None, ignore_binary=True):
     df2 = df.copy(deep=True)
     df2[_cols] = preprocessing.scale(df[_cols].values.astype(float))
     return df2
+
+def match_binary_labels(df, ycolname, ylabs=[0, 1], rseed=None):
+    '''
+    Given a df, match the number of rows with y-labels=0 with the number of rows with y-labels=1
+    
+    This function should be used when the label counts are so skewed that it's difficult to train a 
+    classifier.
+    
+    In order to downsample from the larger group, only complete rows will be randomly selected.
+    If removing incomplete rows in the larger group causes it to be smaller, 
+    then the difference will be made up by sampling from the removed incomplete rows.
+    '''
+    # Make sure ylabs contains only two values
+    if len(set(ylabs)) != 2:
+        raise ValueError('ylabs should contain two unique values: Found: {0}'.format(ylabs))
+    
+    # Get y-label series
+    ycol = df[ycolname]
+
+    # Check that it's a binary classification problem
+    class_counts = ycol.value_counts()
+    if len(class_counts) != 2:
+        raise ValueError('Number of unique values not equal to 2 in column {0}'.format(ycolname))
+
+    # Check that the y column values match with y labs
+    if set(class_counts.index) != set(ylabs):
+        raise ValueError('Y labels do not match: Found: \{{0},{1}\} Given: \{{2},{3}\}'
+                         .format(class_counts.index[0],
+                                 class_counts.index[1],
+                                 ylabs[0],
+                                 ylabs[1]))
+    
+    # Divide up the data frame into the two class label groups
+    _t0 = df[ycol == ylabs[0]]
+    _t1 = df[ycol == ylabs[1]]
+
+    # If the number of rows in both groups are equal, just return the original df
+    if _t0.shape[0] == _t1.shape[0]:
+        return df
+    elif _t0.shape[0] > _t1.shape[0]:
+        group_large = _t0
+        group_small = _t1
+    else:
+        group_large = _t1
+        group_small = _t0
+
+    random.seed(rseed)
+
+    # TODO: Optimize this part using indices (in a hurry for now)
+    # Remove nans
+    group_large_dropna = group_large.dropna()
+    if group_large_dropna.shape[0] == group_small.shape[0]:
+        return pd.concat([group_large_dropna,
+                          group_small])
+    # Randomly sample from group_large
+    elif group_large_dropna.shape[0] > group_small.shape[0]:
+        rows = random.sample(group_large.index, group_small.shape[0])
+        return pd.concat([group_large_dropna.ix[rows],
+                          group_small])
+    # group_large now too small, must add additional missing data
+    else:
+        dropped_idx = list(set(group_large.index) - set(group_large_dropna.index))
+        rows = random.sample(dropped_idx, group_small.shape[0] - group_large_dropna.shape[0])
+        return pd.concat([group_large_dropna,
+                          group_large.ix[rows],
+                          group_small])
 
 def scale_down(strval, mvleft=6):
     '''
