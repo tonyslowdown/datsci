@@ -111,6 +111,10 @@ class TestMunge(unittest.TestCase):
                            [1, 1, 30.0,-1, 1],
                            [1, 1, 23.0, 1, 1],
                            [0, 0, None,-1, 1],
+                           [0, 0, None,-1, 1],
+                           [0, 0, None,-1, 1],
+                           [0, 0, None,-1, 1],
+                           [0, 0, None,-1, 1],
                            [1, 0, 40.0,-1, 0],
                            [1, 1, 50.0,-1 ,0],
                            [0, 2, 60.0, 1 ,0]],
@@ -144,14 +148,28 @@ class TestMunge(unittest.TestCase):
                            [0, 1, 20.0, 1, 1],
                            [1, None, 30.0,-1, 1],
                            [0, 0, None,-1, 1],
+                           [0, 0, None,-1, 1],
+                           [0, None, 22.4,-1, 1],
+                           [0, 0, None,-1, 1],
+                           [0, 0, None,-1, 1],
+                           [0, 0, None,-1, 1],
+                           [0, 0, 30.2,None, 1],
+                           [0, 0, None,-1, 1],
+                           [0, 0, None,-1, 1],
+                           [0, 0, 30.2,None, 1],
+                           [0, 0, None,-1, 1],
+                           [0, 0, None,-1, 1],
+                           [0, 0, 30.2,None, 1],
                            [1, 0, 40.0,-1, 0],
-                           [1, 1, 50.0,-1 ,0],
+                           [0, 1, 51.0,-1 ,0],
+                           [1, 0, 52.0,-1 ,0],
+                           [0, 1, 53.0,-1 ,0],
                            [0, 2, 60.0, 1 ,0]],
                           columns=['a','b','c','d','e'])
         df2 = munge.match_binary_labels(df, 'e')
-        self.assertTrue(df2.shape, (6,5))
+        self.assertTrue(df2.shape, (10,5))
         self.assertEqual(len(df2[df2.e == 1]), len(df2[df2.e == 0]))
-        self.assertTrue(df2.dropna().shape, (5,5))
+        self.assertTrue(df2.dropna().shape, (7,5))
 
     def test_scale_down(self):
         '''

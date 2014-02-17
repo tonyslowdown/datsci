@@ -89,7 +89,7 @@ def match_binary_labels(df, ycolname, ylabs=[0, 1], rseed=None):
                           group_small])
     # Randomly sample from group_large
     elif group_large_dropna.shape[0] > group_small.shape[0]:
-        rows = random.sample(group_large.index, group_small.shape[0])
+        rows = random.sample(group_large_dropna.index, group_small.shape[0])
         return pd.concat([group_large_dropna.ix[rows],
                           group_small])
     # group_large now too small, must add additional missing data
