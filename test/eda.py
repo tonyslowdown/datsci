@@ -33,13 +33,33 @@ class TestEda(unittest.TestCase):
                            [None, None, 33, 44]], columns=['a','b','c','d'])
         self.assertEqual(eda.find_uninfo_cols(df), ['a','b','c'])
 
+    def test_find_null_cols(self):
+        '''
+        Test finding columns with null values at least a certain fraction of the row
+        '''
+        df = pd.DataFrame([[None, 1,    1,  1.0,  1.0,    1],
+                           [None, 1, None,    0,  1.0,    0],
+                           [None, 2, None, None,  1.0,    0],
+                           [None, 2, None, None, None,    0],
+                           [None, 2, None, None, None, None]],
+                          columns=['a','b','c','d','e','f'])
+        self.assertEqual(eda.find_null_cols(df, frac=.99), ['a'])
+        self.assertEqual(eda.find_null_cols(df, frac=.81), ['a'])
+        self.assertEqual(eda.find_null_cols(df, frac=.80), ['a','c'])
+        self.assertEqual(eda.find_null_cols(df, frac=.79), ['a','c'])
+        self.assertEqual(eda.find_null_cols(df, frac=.60), ['a','c','d'])
+        self.assertEqual(eda.find_null_cols(df, frac=.39), ['a','c','d','e'])
+        self.assertEqual(eda.find_null_cols(df, frac=.20), ['a','c','d','e','f'])
+        self.assertEqual(eda.find_null_cols(df, frac=0.0), ['a','b','c','d','e','f'])
+
     def test_find_binary_cols(self):
         '''
         Test finding binary-valued columns in a dataframe
         '''
         df = pd.DataFrame([[1, 11, 1,    1.0,  1.0, 1.000001],
                            [0, 11, None, 0,    1.0, 0],
-                           [1, 22, None, None, 1.0, 0]], columns=['a','b','c','d','e','f'])
+                           [1, 22, None, None, 1.0, 0]],
+                          columns=['a','b','c','d','e','f'])
         self.assertEqual(eda.find_binary_cols(df), ['a','c','d','e'])
         
 

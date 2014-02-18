@@ -21,6 +21,13 @@ def find_uninfo_cols(df):
     counts = df.apply(lambda col: col[~col.isnull()].nunique())
     return list(counts[counts == 1].index)
 
+def find_null_cols(df, frac=.8):
+    '''
+    Find columns containing >= frac null values
+    '''
+    null_fracs = df.apply(lambda col: col[col.isnull()].size) / float(df.shape[0])
+    return list(null_fracs[null_fracs >= frac].index)
+
 def find_binary_cols(df):
     '''
     Given a dataframe, return the names of columns containing only binary values {0,1}
@@ -40,36 +47,38 @@ def find_binary_cols(df):
             binary_cols.append(cname)
     return binary_cols
 
-def plot_null(df, title='nulls'):
+def plot_null(df, title='nulls', sort=True):
     '''
     Plot the nulls in each column of dataframe
     '''
     col_nulls = pd.isnull(df).sum()
-    col_nulls.sort()
+    if sort:
+        col_nulls.sort()
     plt.plot(col_nulls);
     plt.title(title)
     return col_nulls
 
-def plot_inf(df, title='infs'):
+def plot_inf(df, title='infs', sort=True):
     '''
     Plot the infs in each column of dataframe
     '''
     col_infs = np.isinf(df).sum()
-    col_infs.sort()
+    if sort:
+        col_infs.sort()
     plt.plot(col_infs);
     plt.title(title)
     return col_infs
 
-def plot_null_inf(df):
+def plot_null_inf(df, sort=True):
     '''
     Plot the distribution of nulls in each column
     '''
     plt.figure(figsize=(16, 6))
     # Nulls
     plt.subplot(121)
-    col_nulls = plot_null(df)
+    col_nulls = plot_null(df, sort=sort)
     # Infs
     plt.subplot(122)
-    col_inf = plot_inf(df)
+    col_inf = plot_inf(df, sort=sort)
     plt.show()
     return col_nulls, col_inf
