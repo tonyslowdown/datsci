@@ -4,13 +4,14 @@ Description     : Module to handle EDA (Exploratory Data Analysis)
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.02.14
+Last Modified   : 2014.02.19
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import Queue
 from mpltools import style; style.use('ggplot')
 
 def find_uninfo_cols(df):
@@ -47,38 +48,97 @@ def find_binary_cols(df):
             binary_cols.append(cname)
     return binary_cols
 
-def plot_null(df, title='nulls', sort=True):
+def plot_null(df, title='nulls', sort=True, percent=True):
     '''
     Plot the nulls in each column of dataframe
     '''
     col_nulls = pd.isnull(df).sum()
+    if percent:
+        col_nulls = col_nulls / float(df.shape[0])
     if sort:
         col_nulls.sort()
     plt.plot(col_nulls);
     plt.title(title)
     return col_nulls
 
-def plot_inf(df, title='infs', sort=True):
+def plot_inf(df, title='infs', sort=True, percent=True):
     '''
     Plot the infs in each column of dataframe
     '''
     col_infs = np.isinf(df).sum()
+    if percent:
+        col_infs = col_infs / float(df.shape[0])
     if sort:
         col_infs.sort()
     plt.plot(col_infs);
     plt.title(title)
     return col_infs
 
-def plot_null_inf(df, sort=True):
+def plot_null_inf(df, sort=True, percent=True):
     '''
     Plot the distribution of nulls in each column
     '''
     plt.figure(figsize=(16, 6))
     # Nulls
     plt.subplot(121)
-    col_nulls = plot_null(df, sort=sort)
+    col_nulls = plot_null(df, sort=sort, percent=percent)
     # Infs
     plt.subplot(122)
-    col_inf = plot_inf(df, sort=sort)
+    col_inf = plot_inf(df, sort=sort, percent=percent)
     plt.show()
     return col_nulls, col_inf
+
+def get_column_clusters(df, cols=None, thresh=0.95):
+    '''
+    Find clusters of correlated columns by first computing correlation between the columns
+    and then grouping the columns based on a threshold
+
+    Returns a list containing sets of clustered columns
+
+    Uses BFS to find all column clusters
+    '''
+    df_corr = df.corr()
+
+    # Set nodes to be the column names of the data frame
+    if cols is None:
+        nodes = df.columns
+    else:
+        nodes = cols
+
+    def is_connected(n1, n2):
+        '''
+        Check to see if two nodes are connected
+        '''
+        return df_corr.ix[n1, n2] >= thresh
+
+    def get_neighbors(n):
+        '''
+        Given a node n, get all other nodes that are connected to it
+        '''
+        neighbors = set(df_corr[df_corr[n] >= thresh].index)
+        neighbors.remove(n)
+        return neighbors
+
+    def get_cluster(n):
+        '''
+        Given a node n, find all connected nodes
+        Uses BFS
+        '''
+        q = Queue.Queue(len(nodes))
+        q.put(n)
+        seen = set()
+        seen.add(n)
+        while not q.empty():
+            _n = q.get()
+            for _n2 in get_neighbors(_n):
+                if _n2 not in seen:
+                    q.put(_n2)
+                    seen.add(_n2)
+        return seen
+
+    # Iterate through every node, and create clusters based on connectivity
+    clusters = []
+    for cn in nodes:
+        if cn not in [n for cl in clusters for n in cl]:
+            clusters.append(get_cluster(cn))
+    return clusters

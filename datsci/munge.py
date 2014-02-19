@@ -4,7 +4,7 @@ Description     : Module to handle data munging/wrangling
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.02.17
+Last Modified   : 2014.02.19
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 

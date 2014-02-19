@@ -62,6 +62,33 @@ class TestEda(unittest.TestCase):
                           columns=['a','b','c','d','e','f'])
         self.assertEqual(eda.find_binary_cols(df), ['a','c','d','e'])
         
+    def test_get_column_clusters(self):
+        '''
+        Test finding clusters of correlated columns
+        '''
+        # Test clustering 100% correlated values
+        df = pd.DataFrame([[1, 1, 1, 1, 2, 1],
+                           [2, 1, 2, 2, 2, 1],
+                           [3, 5, 3, 3, 1, 5],
+                           [4, 5, 4, 4, 2, 5],
+                           [5, 3, 5, 5, 2, 3]],
+                          columns=['a','b','c','d','e','f'])
+        clusts = sorted([sorted(clust) for clust in eda.get_column_clusters(df, thresh=1.0)])
+        self.assertEqual(clusts, [['a','c','d'],['b','f'],['e']])
+
+        # Test thresholding
+        df = pd.DataFrame([[1, 1, 1, 1, 2, 1],
+                           [2, 1, 2, 1, 2, 1],
+                           [3, 5, 2, 3, 1, 5],
+                           [4, 5, 4, 4, 2, 5],
+                           [5, 3, 5, 5, 2, 3]],
+                          columns=['a','b','c','d','e','f'])
+        clusts = sorted([sorted(clust) for clust in eda.get_column_clusters(df, thresh=0.95)])
+        self.assertEqual(clusts, [['a','c','d'],['b','f'],['e']])
+
+        clusts = sorted([sorted(clust) for clust in eda.get_column_clusters(df, thresh=0.97)])
+        self.assertEqual(clusts, [['a','d'],['b','f'],['c'],['e']])
+
 
 if __name__ == '__main__':
     unittest.main()
