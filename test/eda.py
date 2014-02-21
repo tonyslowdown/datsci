@@ -4,7 +4,7 @@ Description     : Unit test for eda.py
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.02.14
+Last Modified   : 2014.02.21
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -13,6 +13,7 @@ import os,sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), os.path.pardir))
 import numpy as np
 import pandas as pd
+import scipy.stats
 import unittest
 from datsci import eda
 
@@ -83,12 +84,39 @@ class TestEda(unittest.TestCase):
                            [4, 5, 4, 4, 2, 5],
                            [5, 3, 5, 5, 2, 3]],
                           columns=['a','b','c','d','e','f'])
+
+        # Check the correlation range
+        self.assertTrue(0.95 < scipy.stats.pearsonr(df.a, df.c)[0] < 0.97)
+
         clusts = sorted([sorted(clust) for clust in eda.get_column_clusters(df, thresh=0.95)])
         self.assertEqual(clusts, [['a','c','d'],['b','f'],['e']])
 
         clusts = sorted([sorted(clust) for clust in eda.get_column_clusters(df, thresh=0.97)])
         self.assertEqual(clusts, [['a','d'],['b','f'],['c'],['e']])
 
+    def test_rank_order_features(self):
+        '''
+        Test rank ordering features based on importance
+        '''
+        df = pd.DataFrame([[0, 0, 0, 0, 1, 0, 0],
+                           [0, 1, 0, 0, 0, 1, 0],
+                           [0, 0, 1, 0, 1, 0, 0],
+                           [0, 1, 1, 1, 0, 1, 1],
+                           [1, 0, 1, 1, 1, 0, 1],
+                           [1, 1, 1, 1, 0, 1, 1]],
+                          columns=['a','b','c','d','e','f','g'])
+        cols_ranked, importances = eda.rank_order_features(df[['a','b','c','d','e']],
+                                                           df['g'],
+                                                           plot=False)
+        # Check that the lengths of the two outputs are equal
+        self.assertEqual(len(cols_ranked), len(importances))
+        # Check that the importances are sorted
+        self.assertEqual(sorted(importances, reverse=True), list(importances))
+        # Check top three features
+        self.assertEqual(set(cols_ranked[:3]), set(['d','c','a']))
+        # Check the top feature is the same as the y
+        self.assertEqual(cols_ranked[0], 'd')
+        
 
 if __name__ == '__main__':
     unittest.main()

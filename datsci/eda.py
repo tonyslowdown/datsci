@@ -4,7 +4,7 @@ Description     : Module to handle EDA (Exploratory Data Analysis)
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.02.19
+Last Modified   : 2014.02.21
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import Queue
 from mpltools import style; style.use('ggplot')
+from sklearn.ensemble import RandomForestClassifier
 
 def find_uninfo_cols(df):
     '''
@@ -88,7 +89,7 @@ def plot_null_inf(df, sort=True, percent=True):
     plt.show()
     return col_nulls, col_inf
 
-def get_column_clusters(df, cols=None, thresh=0.95):
+def get_column_clusters(df, cols=None, thresh=0.95, method='pearson'):
     '''
     Find clusters of correlated columns by first computing correlation between the columns
     and then grouping the columns based on a threshold
@@ -97,7 +98,7 @@ def get_column_clusters(df, cols=None, thresh=0.95):
 
     Uses BFS to find all column clusters
     '''
-    df_corr = df.corr()
+    df_corr = df.corr(method=method)
 
     # Set nodes to be the column names of the data frame
     if cols is None:
@@ -105,18 +106,13 @@ def get_column_clusters(df, cols=None, thresh=0.95):
     else:
         nodes = cols
 
-    def is_connected(n1, n2):
-        '''
-        Check to see if two nodes are connected
-        '''
-        return df_corr.ix[n1, n2] >= thresh
-
     def get_neighbors(n):
         '''
         Given a node n, get all other nodes that are connected to it
         '''
         neighbors = set(df_corr[df_corr[n] >= thresh].index)
-        neighbors.remove(n)
+        if neighbors:
+            neighbors.remove(n)
         return neighbors
 
     def get_cluster(n):
@@ -142,3 +138,27 @@ def get_column_clusters(df, cols=None, thresh=0.95):
         if cn not in [n for cl in clusters for n in cl]:
             clusters.append(get_cluster(cn))
     return clusters
+
+def rank_order_features(X, y, plot=True):
+    '''
+    Rank order features based on their importance based on a random forest classifer
+
+    Taken from DataGotham 2013 Data Science Tutorial, Feature Engineering
+    http://nbviewer.ipython.org/urls/raw2.github.com/yhat/DataGotham2013/master/notebooks/7%20-%20Feature%20Engineering.ipynb?create=1
+    '''    
+    clf = RandomForestClassifier(n_estimators=50)
+    clf.fit(X, y);
+    importances = clf.feature_importances_
+    # For plotting, sort importances in increasing order
+    sorted_idx = np.argsort(importances)
+    colnames_sorted = X.columns[sorted_idx]
+    importances_sorted = importances[sorted_idx]
+    if plot:
+        padding = np.arange(X.shape[1]) + 0.5
+        plt.barh(padding, importances_sorted, align='center')
+        plt.yticks(padding, colnames_sorted)
+        plt.xlabel("Relative Importance")
+        plt.title("Variable Importance")
+        plt.show()
+    # For return values, return the importances in decreasing order
+    return colnames_sorted[::-1], importances_sorted[::-1]
