@@ -162,3 +162,25 @@ def rank_order_features(X, y, plot=True):
         plt.show()
     # For return values, return the importances in decreasing order
     return colnames_sorted[::-1], importances_sorted[::-1]
+
+def generate_important_cols(col_clusts, col_order):
+    '''
+    Given a list of clusters containing column names and a list of ordered column names,
+    generate important column names one by one, skipping columns who belong to clusters
+    where a member of the cluster has already been returned.
+
+    col_clusts is in the format [set(), set(), set()] where each set represents a column
+    col_order is an ordered collection containing ordered column names.
+    '''
+    # Create a dictionary of column names to the index of the cluster they belong to
+    col2clustname = {}
+    for i,clust in enumerate(col_clusts):
+       for col in clust:
+           col2clustname[col] = i
+
+    # Maintain a set of cluster names where a member of the cluster has already been returned
+    clusts_visited = set()
+    for c in col_order:
+        if col2clustname[c] not in clusts_visited:
+            clusts_visited.add(col2clustname[c])
+            yield c

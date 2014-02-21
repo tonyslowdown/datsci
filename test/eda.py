@@ -117,6 +117,31 @@ class TestEda(unittest.TestCase):
         # Check the top feature is the same as the y
         self.assertEqual(cols_ranked[0], 'd')
         
+    def test_generate_important_cols(self):
+        '''
+        Test generating ordered column names uniquely from their grouped clusters
+        '''
+        col_clusts = [set(['a','b','c']),
+                      set(['d','e','f']),
+                      set(['g','h','i'])]
+        gen = eda.generate_important_cols(col_clusts,
+                                          ['a','b','c','d','e','f','g','h','i'])
+        cols = [c for c in gen]
+        self.assertEqual(len(cols), 3)
+        self.assertEqual(cols, ['a','d','g'])
+
+        gen = eda.generate_important_cols(col_clusts,
+                                          ['b','c','a','f','e','d','h','g','i'])
+        cols = [c for c in gen]
+        self.assertEqual(len(cols), 3)
+        self.assertEqual(cols, ['b','f','h'])
+
+        gen = eda.generate_important_cols(col_clusts,
+                                          ['b','f','a','e','h','d','c','g','i'])
+        cols = list(gen)
+        self.assertEqual(len(cols), 3)
+        self.assertEqual(cols, ['b','f','h'])
+
 
 if __name__ == '__main__':
     unittest.main()
