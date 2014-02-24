@@ -4,7 +4,7 @@ Description     : Unit test for munge.py
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.02.21
+Last Modified   : 2014.02.24
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), os.p
 import numpy as np
 import pandas as pd
 import unittest
-from datsci import munge
+from datsci import eda, munge
 
 class TestMunge(unittest.TestCase):
     '''
@@ -54,6 +54,18 @@ class TestMunge(unittest.TestCase):
         a1 = np.round(df_std3.values[:,0], decimals=4)
         a2 = np.round(df.values[:,0], decimals=4)
         self.assertTrue((a1 == a2).all())
+
+    def test_impute_standardize(self):
+        '''
+        Test piplined method to impute and standardize training data
+        '''
+        df = pd.DataFrame([[1,2,3],
+                           [1,2,3],
+                           [None,2,3]], columns=['a','b','c'])
+        self.assertTrue(eda.df_equal(munge.impute_standardize(df),
+                                     pd.DataFrame([[1,0,0],
+                                                   [1,0,0],
+                                                   [1,0,0]])))
 
     def test_match_binary_labels(self):
         '''

@@ -4,7 +4,7 @@ Description     : Module to handle EDA (Exploratory Data Analysis)
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.02.21
+Last Modified   : 2014.02.24
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -14,6 +14,25 @@ import pandas as pd
 import Queue
 from mpltools import style; style.use('ggplot')
 from sklearn.ensemble import RandomForestClassifier
+
+def df_equal(df1, df2, decimals=None):
+    '''
+    Compare the values of two pandas DataFrame objects element by element,
+    and if every single element is equal, return True
+
+    Parameter decimals determines the number of decimal places to round decimal values before comparing
+    '''
+    # First, compare the sizes
+    if df1.shape != df2.shape:
+        return False
+
+    n_elements = np.multiply(*df1.shape)
+    l1 = np.squeeze(df1.values.reshape(n_elements, 1))
+    l2 = np.squeeze(df2.values.reshape(n_elements, 1))
+    if decimals is not None and type(decimals) == int:
+        l1 = np.round(l1, decimals=decimals)
+        l2 = np.round(l2, decimals=decimals)
+    return (l1 == l2).all()
 
 def find_uninfo_cols(df):
     '''

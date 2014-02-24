@@ -4,7 +4,7 @@ Description     : Unit test for eda.py
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.02.21
+Last Modified   : 2014.02.24
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -21,6 +21,61 @@ class TestEda(unittest.TestCase):
     '''
     Unit tests for the eda module
     '''
+
+    def test_df_equal(self):
+        '''
+        Test checking to see if two dataframes are equal
+        '''
+        # Test integers
+        df1 = pd.DataFrame([[1,2],
+                            [3,4]])
+        df2 = pd.DataFrame([[1,2],
+                            [3,4]])
+        self.assertTrue(eda.df_equal(df1, df2))
+
+        df1 = pd.DataFrame([[1,2],
+                            [3,5]])
+        df2 = pd.DataFrame([[1,2],
+                            [3,4]])
+        self.assertFalse(eda.df_equal(df1, df2))
+
+        # Test strings
+        df1 = pd.DataFrame([['a',2],
+                            [3,'c']])
+        df2 = pd.DataFrame([['a',2],
+                            [3,'c']])
+        self.assertTrue(eda.df_equal(df1, df2))
+
+        df1 = pd.DataFrame([['a',2],
+                            [3,'c']])
+        df2 = pd.DataFrame([['c',2],
+                            [3,'c']])
+        self.assertFalse(eda.df_equal(df1, df2))
+        
+        # Test rounding
+        df1 = pd.DataFrame([[1.1234, 2.1234],
+                            [3.1234, 4.1234]])
+        df2 = pd.DataFrame([[1.1234, 2.1234],
+                            [3.1234, 4.1234]])
+        self.assertTrue(eda.df_equal(df1, df2))
+
+        df1 = pd.DataFrame([[1.1234, 2.1234],
+                            [3.1234, 5.1234]])
+        df2 = pd.DataFrame([[1.1234, 2.1234],
+                            [3.1234, 4.1232]])
+        self.assertFalse(eda.df_equal(df1, df2))
+
+        df1 = pd.DataFrame([[1.1234, 2.1234],
+                            [3.1234, 4.1234]])
+        df2 = pd.DataFrame([[1.1234, 2.1234],
+                            [3.1234, 4.1232]])
+        self.assertTrue(eda.df_equal(df1, df2, decimals=3))
+
+        df1 = pd.DataFrame([[1.1234, 2.1234],
+                            [3.1234, 5.1234123]])
+        df2 = pd.DataFrame([[1.1234, 2.1234],
+                            [3.1234, 5.123412]])
+        self.assertTrue(eda.df_equal(df1, df2, decimals=6))
 
     def test_find_uinfo_cols(self):
         '''
@@ -74,7 +129,7 @@ class TestEda(unittest.TestCase):
                            [4, 5, 4, 4, 2, 5],
                            [5, 3, 5, 5, 2, 3]],
                           columns=['a','b','c','d','e','f'])
-        clusts = sorted([sorted(clust) for clust in eda.get_column_clusters(df, thresh=1.0)])
+        clusts = sorted([sorted(clust) for clust in eda.get_column_clusters(df, cols=df.columns, thresh=1.0)])
         self.assertEqual(clusts, [['a','c','d'],['b','f'],['e']])
 
         # Test thresholding
@@ -91,7 +146,7 @@ class TestEda(unittest.TestCase):
         clusts = sorted([sorted(clust) for clust in eda.get_column_clusters(df, thresh=0.95)])
         self.assertEqual(clusts, [['a','c','d'],['b','f'],['e']])
 
-        clusts = sorted([sorted(clust) for clust in eda.get_column_clusters(df, thresh=0.97)])
+        clusts = sorted([sorted(clust) for clust in eda.get_column_clusters(df, cols=df.columns, thresh=0.97)])
         self.assertEqual(clusts, [['a','d'],['b','f'],['c'],['e']])
 
     def test_rank_order_features(self):

@@ -4,7 +4,7 @@ Description     : Module to handle data munging/wrangling
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.02.21
+Last Modified   : 2014.02.24
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -14,6 +14,7 @@ import random
 import re
 import eda
 from sklearn import preprocessing
+from sklearn.preprocessing import Imputer
 
 def standardize_cols(df, cols=None, ignore_binary=True):
     '''
@@ -33,6 +34,29 @@ def standardize_cols(df, cols=None, ignore_binary=True):
     df2 = df.copy(deep=True)
     df2[_cols] = preprocessing.scale(df[_cols].values.astype(float))
     return df2
+
+def impute_standardize(df, cols=None, impute_strategy='mean', ignore_binary=True):
+    '''
+    A pipelined method to impute and standardize, since it might be common to use them in sequence.
+    Parameter cols defines the columns to impute and standardize.
+    '''
+    # If cols is blank, use all columns in the dataframe
+    _cols = cols
+    if _cols is None:
+        _cols = df.columns
+
+    # Impute NAs
+    imp = Imputer(missing_values='NaN', strategy=impute_strategy, axis=0)
+    imp.fit(df)
+
+    # Impute
+    df_imputed = pd.DataFrame(imp.transform(df.values), columns=df.columns)
+
+    # Normalize
+    df_imputed_std = standardize_cols(df_imputed,
+                                      cols=_cols,
+                                      ignore_binary=ignore_binary)
+    return df_imputed_std
 
 def match_binary_labels(df, ycolname, ylabs=[0, 1], rseed=None):
     '''
