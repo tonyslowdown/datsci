@@ -4,7 +4,7 @@ Description     : Module to handle data munging/wrangling
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.02.24
+Last Modified   : 2014.02.26
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -134,11 +134,11 @@ def scale_down(strval, mvleft=6):
         raise ValueError('mvleft must be an integer greater than 0\n')
 
     # Raise error if strval is non-numeric string
-    if type(strval) == str and not re.search(r'^[0-9.]+$', strval):
+    if isinstance(strval, str) and not re.search(r'^[0-9.]+$', strval):
         raise ValueError('Could not scale non-numeric string {0}\n'.format(strval))
 
     # If value is None or np.nan, just return the value
-    if type(strval) != str:
+    if not isinstance(strval, str):
         if pd.isnull(strval):
             return strval
         elif np.isnan(strval):

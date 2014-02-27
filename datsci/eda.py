@@ -4,7 +4,7 @@ Description     : Module to handle EDA (Exploratory Data Analysis)
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.02.24
+Last Modified   : 2014.02.27
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import Queue
 from mpltools import style; style.use('ggplot')
+from sklearn import cross_validation
 from sklearn.ensemble import RandomForestClassifier
 
 def df_equal(df1, df2, decimals=None):
@@ -29,7 +30,7 @@ def df_equal(df1, df2, decimals=None):
     n_elements = np.multiply(*df1.shape)
     l1 = np.squeeze(df1.values.reshape(n_elements, 1))
     l2 = np.squeeze(df2.values.reshape(n_elements, 1))
-    if decimals is not None and type(decimals) == int:
+    if decimals is not None and isinstance(decimals, int):
         l1 = np.round(l1, decimals=decimals)
         l2 = np.round(l2, decimals=decimals)
     return (l1 == l2).all()
@@ -108,7 +109,7 @@ def plot_null_inf(df, sort=True, percent=True):
     plt.show()
     return col_nulls, col_inf
 
-def get_column_clusters(df, cols=None, thresh=0.95, method='pearson'):
+def get_feature_clusters(df, cols=None, thresh=0.95, method='pearson'):
     '''
     Find clusters of correlated columns by first computing correlation between the columns
     and then grouping the columns based on a threshold
@@ -182,7 +183,7 @@ def rank_order_features(X, y, plot=True):
     # For return values, return the importances in decreasing order
     return colnames_sorted[::-1], importances_sorted[::-1]
 
-def generate_important_cols(col_clusts, col_order):
+def generate_important_features(col_clusts, col_order):
     '''
     Given a list of clusters containing column names and a list of ordered column names,
     generate important column names one by one, skipping columns who belong to clusters
@@ -203,3 +204,54 @@ def generate_important_cols(col_clusts, col_order):
         if col2clustname[c] not in clusts_visited:
             clusts_visited.add(col2clustname[c])
             yield c
+
+def cross_validate_feature_groups(clf, df, feature_groups, y, titles=None, 
+                                  cv=10, plot=True, plots_per_row=4):
+    '''
+    Given a classifier and a list of feature groups, run cross-validation on the feature groups
+    and generate plots on the scores, and return a dataframe of score summaries.
+    '''
+    # Ensure that the length of titles is equal to the length of feature groups
+    len_feature_groups = len(feature_groups)
+    if (titles is not None) and (len(titles) != len_feature_groups):
+        raise ValueError('Length of titles must be equal to length of feature groups')
+
+    # If titles are not set, then set numeric titles
+    if titles is None:
+        titles = range(len_feature_groups)
+
+    # If plot is turned on
+    if plot:
+        fig = plt.figure(figsize=(16,10))
+        n_rows = np.ceil(len_feature_groups / float(plots_per_row))
+
+    ax0 = None
+    g2scores = {}
+    for i,g in enumerate(feature_groups):
+        scores = cross_validation.cross_val_score(clf, df[g], y, cv=cv)
+        g2scores[titles[i]] = {'mean': scores.mean(),
+                               'max': scores.max(),
+                               'min': scores.min()}
+        # If plot is turned on
+        if plot:
+            if i == 0:
+                ax0 = plt.subplot(n_rows, plots_per_row, i + 1)
+            else:
+                plt.subplot(n_rows, plots_per_row, i + 1, sharey=ax0)
+            plt.plot(scores);
+            plt.title(titles[i])
+    
+    # Show plot
+    if plot:
+        fig.tight_layout()
+
+    # Return scores summary
+    scores_summary = pd.DataFrame(g2scores)[titles]
+
+    # Bar graph of the scores summary
+    if plot:
+        scores_summary.transpose().plot(kind='bar', figsize=(16,8))
+        plt.title('Scores Summary')
+        plt.legend(loc=4)
+
+    return scores_summary

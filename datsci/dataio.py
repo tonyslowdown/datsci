@@ -4,7 +4,7 @@ Description     : Module to handle data io
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2013.09.23
-Last Modified   : 2014.02.12
+Last Modified   : 2014.02.26
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -48,7 +48,7 @@ def load_subset(f, k=None, sep=',', colnames=None, header=0, rseed=None):
         return pd.read_csv(f, sep=sep, names=colnames, header=header)
     
     # Subsample from file
-    if type(f) == str:
+    if isinstance(f, str):
         f = open(f, 'rU')
     reader = csv.reader(f, delimiter=sep)
     

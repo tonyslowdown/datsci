@@ -4,7 +4,7 @@ Description     : Unit test for eda.py
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.02.24
+Last Modified   : 2014.02.25
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -16,6 +16,7 @@ import pandas as pd
 import scipy.stats
 import unittest
 from datsci import eda
+from sklearn.ensemble import RandomForestClassifier
 
 class TestEda(unittest.TestCase):
     '''
@@ -118,7 +119,7 @@ class TestEda(unittest.TestCase):
                           columns=['a','b','c','d','e','f'])
         self.assertEqual(eda.find_binary_cols(df), ['a','c','d','e'])
         
-    def test_get_column_clusters(self):
+    def test_get_feature_clusters(self):
         '''
         Test finding clusters of correlated columns
         '''
@@ -129,7 +130,7 @@ class TestEda(unittest.TestCase):
                            [4, 5, 4, 4, 2, 5],
                            [5, 3, 5, 5, 2, 3]],
                           columns=['a','b','c','d','e','f'])
-        clusts = sorted([sorted(clust) for clust in eda.get_column_clusters(df, cols=df.columns, thresh=1.0)])
+        clusts = sorted([sorted(clust) for clust in eda.get_feature_clusters(df, cols=df.columns, thresh=1.0)])
         self.assertEqual(clusts, [['a','c','d'],['b','f'],['e']])
 
         # Test thresholding
@@ -143,10 +144,10 @@ class TestEda(unittest.TestCase):
         # Check the correlation range
         self.assertTrue(0.95 < scipy.stats.pearsonr(df.a, df.c)[0] < 0.97)
 
-        clusts = sorted([sorted(clust) for clust in eda.get_column_clusters(df, thresh=0.95)])
+        clusts = sorted([sorted(clust) for clust in eda.get_feature_clusters(df, thresh=0.95)])
         self.assertEqual(clusts, [['a','c','d'],['b','f'],['e']])
 
-        clusts = sorted([sorted(clust) for clust in eda.get_column_clusters(df, cols=df.columns, thresh=0.97)])
+        clusts = sorted([sorted(clust) for clust in eda.get_feature_clusters(df, cols=df.columns, thresh=0.97)])
         self.assertEqual(clusts, [['a','d'],['b','f'],['c'],['e']])
 
     def test_rank_order_features(self):
@@ -172,30 +173,57 @@ class TestEda(unittest.TestCase):
         # Check the top feature is the same as the y
         self.assertEqual(cols_ranked[0], 'd')
         
-    def test_generate_important_cols(self):
+    def test_generate_important_features(self):
         '''
         Test generating ordered column names uniquely from their grouped clusters
         '''
         col_clusts = [set(['a','b','c']),
                       set(['d','e','f']),
                       set(['g','h','i'])]
-        gen = eda.generate_important_cols(col_clusts,
+        gen = eda.generate_important_features(col_clusts,
                                           ['a','b','c','d','e','f','g','h','i'])
         cols = [c for c in gen]
         self.assertEqual(len(cols), 3)
         self.assertEqual(cols, ['a','d','g'])
 
-        gen = eda.generate_important_cols(col_clusts,
+        gen = eda.generate_important_features(col_clusts,
                                           ['b','c','a','f','e','d','h','g','i'])
         cols = [c for c in gen]
         self.assertEqual(len(cols), 3)
         self.assertEqual(cols, ['b','f','h'])
 
-        gen = eda.generate_important_cols(col_clusts,
+        gen = eda.generate_important_features(col_clusts,
                                           ['b','f','a','e','h','d','c','g','i'])
         cols = list(gen)
         self.assertEqual(len(cols), 3)
         self.assertEqual(cols, ['b','f','h'])
+
+    def test_cross_validate_feature_groups(self):
+        '''
+        Test cross validating multiple feature groups
+        '''
+        # Must raise error if the number of feature groups is not equal to the number of titles
+        self.assertRaises(ValueError,
+                          eda.cross_validate_feature_groups,
+                          'clf',
+                          'df',
+                          [1,2],
+                          'y',
+                          [1,2,3])
+
+        df = pd.DataFrame([[0, 0, 0, 0, 1, 0, 0],
+                           [0, 1, 0, 0, 0, 1, 0],
+                           [0, 0, 1, 0, 1, 0, 0],
+                           [0, 1, 1, 1, 0, 1, 1],
+                           [1, 0, 1, 1, 1, 0, 1],
+                           [1, 1, 1, 1, 0, 1, 1]],
+                          columns=['a','b','c','d','e','f','g'])
+        clf = RandomForestClassifier(n_estimators=10)
+        cv_results = eda.cross_validate_feature_groups(clf, df, [['a','b'],['c','d'],['e','f']],
+                                                       df.g, cv=3,
+                                                       titles=['group 1(a,b)', 'group 2(c,d)',
+                                                               'group 3(c,d)'], plot=False)
+        self.assertEqual(cv_results.shape, (3,3))
 
 
 if __name__ == '__main__':
