@@ -4,13 +4,14 @@ Description     : Unit test for recsys.py
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.03.25
-Last Modified   : 
-Modified By     : 
+Last Modified   : 2014.03.27
+Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
 import os,sys
 # Add project root to PYTHONPATH
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), os.path.pardir))
+import numpy as np
 import pandas as pd
 import unittest
 from datsci import recsys
@@ -29,6 +30,22 @@ class TestRecommenderFrame(unittest.TestCase):
         
         recframe = recsys.RecommenderFrame(data, columns=['user','item','rating'])
         self.assertTrue(len({'user', 'item', 'rating'}.intersection(set(recframe.columns))), 3)
+
+    def test_create_matrix(self):
+        '''
+        Test create_matrix method
+        '''
+        recframe = recsys.RecommenderFrame([['a', 'x', 1],
+                                            ['a', 'y', 2],
+                                            ['b', 'x', 4]],
+                                           columns=['user', 'item', 'rating'])
+        m = recframe.create_matrix()
+        self.assertEqual(sorted(m.columns), ['x','y'])
+        self.assertEqual(sorted(m.index), ['a','b'])
+        self.assertEqual(m.ix['a','x'], 1)
+        self.assertEqual(m.ix['a','y'], 2)
+        self.assertEqual(m.ix['b','x'], 4)
+        self.assertTrue(np.isnan(m.ix['b','y']))
 
 
 class TestCollabFilterFrame(unittest.TestCase):
@@ -87,17 +104,32 @@ class TestCollabFilterFrame(unittest.TestCase):
         dist_nooverlaps = self.recframe.similarity('Bob', 'Joe')
         self.assertEqual(dist_nooverlaps, 0)
 
-    def test_top_matches(self):
+    def test_get_user_matches(self):
         '''
-        Test top_matches method
+        Test get_user_matches method
         '''
-        tm = self.recframe.top_matches('Toby', n=3)
+        tm = self.recframe.get_user_matches('Toby', n=3)
         self.assertEqual([(round(item[0], 11), item[1]) for item in tm],
                          [(0.99124070716, 'Lisa Rose'),
                           (0.92447345164, 'Mick LaSalle'),
                           (0.89340514744, 'Claudia Puig')])
 
-        self.assertEqual(len(self.recframe.top_matches('Toby', n=5)), 5)
+        self.assertEqual(len(self.recframe.get_user_matches('Toby', n=5)), 5)
+        self.assertEqual(len(self.recframe.get_user_matches('Toby')), 8)
+
+    def test_get_recommendations(self):
+        '''
+        Test get_recommendations method
+        '''
+        self.assertEqual(self.recframe.get_recommendations('Toby', n=3, method='pearson'),
+                         [(3.3477895267131013, 'The Night Listener'),
+                          (2.8325499182641622, 'Lady in the Water'),
+                          (2.5309807037655645, 'Just My Luck')])
+
+        self.assertEqual(self.recframe.get_recommendations('Toby', n=3, method='euclidean'),
+                         [(3.457128694491423, 'The Night Listener'),
+                          (2.7785840038149239, 'Lady in the Water'),
+                          (2.4224820423619167, 'Just My Luck')])
 
 
 if __name__ == '__main__':
