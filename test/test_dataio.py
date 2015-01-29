@@ -4,7 +4,7 @@ Description     : Unit test for datsci.py
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2013.09.23
-Last Modified   : 2014.02.12
+Last Modified   : 2014.09.20
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -12,8 +12,9 @@ import os,sys
 # Add project root to PYTHONPATH
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), os.path.pardir))
 import numpy as np
+import pandas as pd
 import unittest
-from datsci import dataio
+from datsci import dataio, eda
 
 class TestIO(unittest.TestCase):
     '''
@@ -25,6 +26,103 @@ class TestIO(unittest.TestCase):
         Set up test environment variables
         '''
         self.curdir = os.path.dirname(os.path.abspath(__file__))
+
+    def test_fopen(self):
+        '''
+        Test getting file handle based on file type
+        '''
+        import gzip
+        import tarfile
+        import zipfile
+
+        ######################################################
+        # Reading from file
+
+        # txt file
+        sample_file = os.path.join(self.curdir, 'res', 'sample1.txt')
+        f = dataio.fopen(sample_file)
+        self.assertTrue(isinstance(f, file))
+        self.assertEqual(f.next().strip().split('\t')[0], 'a')
+        self.assertEqual(f.next().strip().split('\t')[1], '2')
+        self.assertEqual(f.next().strip().split('\t')[2], '33')
+
+        # csv file
+        sample_file = os.path.join(self.curdir, 'res', 'sample1.csv')
+        f = dataio.fopen(sample_file)
+        self.assertTrue(isinstance(f, file))
+        self.assertEqual(f.next().strip().split(',')[0], 'a')
+        self.assertEqual(f.next().strip().split(',')[1], '2')
+        self.assertEqual(f.next().strip().split(',')[2], '33')
+
+        # tsv file
+        sample_file = os.path.join(self.curdir, 'res', 'sample1.tsv')
+        f = dataio.fopen(sample_file)
+        self.assertTrue(isinstance(f, file))
+        self.assertEqual(f.next().strip().split('\t')[0], 'a')
+        self.assertEqual(f.next().strip().split('\t')[1], '2')
+        self.assertEqual(f.next().strip().split('\t')[2], '33')
+
+        # zip file
+        sample_file = os.path.join(self.curdir, 'res', 'sample1.csv.zip')
+        f = dataio.fopen(sample_file)
+        self.assertTrue(isinstance(f, zipfile.ZipExtFile))
+        self.assertEqual(f.next().strip().split(',')[0], 'a')
+        self.assertEqual(f.next().strip().split(',')[1], '2')
+        self.assertEqual(f.next().strip().split(',')[2], '33')
+    
+        # gz file
+        sample_file = os.path.join(self.curdir, 'res', 'sample1.csv.gz')
+        f = dataio.fopen(sample_file)
+        self.assertTrue(isinstance(f, gzip.GzipFile))
+        self.assertEqual(f.next().strip().split(',')[0], 'a')
+        self.assertEqual(f.next().strip().split(',')[1], '2')
+        self.assertEqual(f.next().strip().split(',')[2], '33')
+
+        # tar.gz
+        sample_file = os.path.join(self.curdir, 'res', 'sample1.csv.tar.gz')
+        f = dataio.fopen(sample_file)
+        self.assertTrue(isinstance(f, tarfile.ExFileObject))
+        self.assertEqual(f.readline().strip().split(',')[0], 'a')
+        self.assertEqual(f.readline().strip().split(',')[1], '2')
+        self.assertEqual(f.readline().strip().split(',')[2], '33')
+
+        # tar.bz2
+        sample_file = os.path.join(self.curdir, 'res', 'sample1.csv.tar.bz2')
+        f = dataio.fopen(sample_file)
+        self.assertTrue(isinstance(f, tarfile.ExFileObject))
+        self.assertEqual(f.readline().strip().split(',')[0], 'a')
+        self.assertEqual(f.readline().strip().split(',')[1], '2')
+        self.assertEqual(f.readline().strip().split(',')[2], '33')
+
+        ######################################################
+        # Writing to file
+
+        # tsv file
+        # Read from file
+        sample_file = os.path.join(self.curdir, 'res', 'sample1.tsv')
+        data = dataio.fopen(sample_file).read()
+        # Write to second duplicate file
+        sample_outfile = os.path.join(self.curdir, 'res', 'sample1.dup.tsv')
+        with dataio.fopen(sample_outfile, 'w') as fout:
+            self.assertTrue(isinstance(fout, file))
+            fout.write(data)
+        # Read from second duplicate file
+        data2 = open(sample_outfile, 'r').read()
+        self.assertEqual(data, data2)
+        os.remove(sample_outfile)
+
+        # gz file
+        sample_file = os.path.join(self.curdir, 'res', 'sample1.csv.gz')
+        data = dataio.fopen(sample_file).read()
+        # Write to second duplicate file
+        sample_outfile = os.path.join(self.curdir, 'res', 'sample1.csv.dup.gz')
+        with dataio.fopen(sample_outfile, 'w') as fout:
+            self.assertTrue(isinstance(fout, gzip.GzipFile))
+            fout.write(data)
+        # Read from second duplicate file
+        data2 = dataio.fopen(sample_outfile, 'r').read()
+        self.assertEqual(data, data2)
+        os.remove(sample_outfile)
 
     def test_reservoir_sample(self):
         '''
@@ -55,9 +153,9 @@ class TestIO(unittest.TestCase):
         '''
 
         # Setup test parameters
-        sample_file = os.path.join(self.curdir, 'res/sample1.csv')
+        sample_file = os.path.join(self.curdir, 'res', 'sample1.csv')
         sample_file_length = 0
-        for i,line in enumerate(open(sample_file, 'rU')):
+        for i,line in enumerate(dataio.fopen(sample_file, 'r')):
             if i == 0:
                 sample_cols = line.strip().split(',')
             sample_file_length += 1
@@ -161,7 +259,7 @@ class TestIO(unittest.TestCase):
         #===========================================================
         # Delimiters and rseed
 
-        sample_file_txt = os.path.join(self.curdir, 'res/sample1.txt')
+        sample_file_txt = os.path.join(self.curdir, 'res', 'sample1.txt')
 
         # sep = '\t', k = None
         df = dataio.load_subset(sample_file_txt, sep='\t')
@@ -169,25 +267,54 @@ class TestIO(unittest.TestCase):
         self.assertEqual(list(df.columns), sample_cols)
 
         # sep = '\t', k = 5
-        df = dataio.load_subset(open(sample_file_txt, 'rU'), sep='\t', k=5, header=None)
+        df = dataio.load_subset(sample_file_txt, sep='\t', k=5, header=None)
         self.assertEqual(df.shape, (5, sample_cols_len))
         self.assertEqual(list(df.columns), autocols)
 
         # rseed = 1, k = 5
-        df = dataio.load_subset(open(sample_file_txt, 'rU'), sep='\t', k=5, header=None, rseed=1)
+        df = dataio.load_subset(sample_file_txt, sep='\t', k=5, header=None, rseed=1)
         self.assertEqual(df.shape, (5, sample_cols_len))
         self.assertEqual(list(df.columns), autocols)
-        df2 = dataio.load_subset(open(sample_file_txt, 'rU'), sep='\t', k=5, header=None, rseed=1)
+        df2 = dataio.load_subset(sample_file_txt, sep='\t', k=5, header=None, rseed=1)
         a1 = np.squeeze(df.values.reshape(np.multiply(*df.shape),1))
         a2 = np.squeeze(df2.values.reshape(np.multiply(*df.shape),1))
         self.assertTrue((a1 == a2).all())
         
         # rseed = None, k = 5
-        df = dataio.load_subset(open(sample_file_txt, 'rU'), sep='\t', k=5, header=None)
-        df2 = dataio.load_subset(open(sample_file_txt, 'rU'), sep='\t', k=5, header=None)
+        df = dataio.load_subset(sample_file_txt, sep='\t', k=5, header=None)
+        df2 = dataio.load_subset(sample_file_txt, sep='\t', k=5, header=None)
         a1 = np.squeeze(df.values.reshape(np.multiply(*df.shape),1))
         a2 = np.squeeze(df2.values.reshape(np.multiply(*df.shape),1))
         self.assertFalse((a1 == a2).all())
+
+    def test_head(self):
+        '''
+        Test loading first few lines of file
+        '''
+        sample_file_txt = os.path.join(self.curdir, 'res', 'sample1.txt')
+        colnames = dataio.head(sample_file_txt, k=0, sep='\t')
+        self.assertTrue(isinstance(colnames, pd.Series))
+
+        sample_file = os.path.join(self.curdir, 'res', 'sample1.csv.gz')
+        df = dataio.head(sample_file, k=1)
+        self.assertEqual(df.shape[0], 1)
+        self.assertEqual(df.shape[1], 3)
+        df = dataio.head(sample_file, k=7)
+        self.assertEqual(df.shape[0], 7)
+        df = dataio.head(sample_file, k=8, sep=',')
+        self.assertEqual(df.shape[0], 8)
+        df = dataio.head(sample_file, k=9)
+        self.assertEqual(df.shape[0], 8)
+        df = dataio.head(sample_file, k=100, sep=',')
+        self.assertEqual(df.shape[0], 8)
+
+        # Must change to numeric, since data read from file is string
+        for col in df.columns:
+            df[col] = df[col].astype(int)
+        df2 = pd.read_csv(sample_file_txt, sep='\t')
+        self.assertTrue(eda.df_equal(df, df2))
+
+
 
 
 if __name__ == '__main__':

@@ -4,17 +4,24 @@ Description     : Module to handle EDA (Exploratory Data Analysis)
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.02.27
+Last Modified   : 2014.10.29
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
+import csv
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import Queue
+import sys
+from collections import defaultdict
+from contextlib import closing
+from datetime import datetime
 from mpltools import style; style.use('ggplot')
 from sklearn import cross_validation
 from sklearn.ensemble import RandomForestClassifier
+
+import dataio
 
 def df_equal(df1, df2, decimals=None):
     '''
@@ -159,14 +166,15 @@ def get_feature_clusters(df, cols=None, thresh=0.95, method='pearson'):
             clusters.append(get_cluster(cn))
     return clusters
 
-def rank_order_features(X, y, plot=True):
+def rank_order_features(X, y, clf=None, plot=True):
     '''
     Rank order features based on their importance based on a random forest classifer
 
     Taken from DataGotham 2013 Data Science Tutorial, Feature Engineering
     http://nbviewer.ipython.org/urls/raw2.github.com/yhat/DataGotham2013/master/notebooks/7%20-%20Feature%20Engineering.ipynb?create=1
-    '''    
-    clf = RandomForestClassifier(n_estimators=50)
+    '''
+    if clf is None:
+        clf = RandomForestClassifier(n_estimators=50)
     clf.fit(X, y);
     importances = clf.feature_importances_
     # For plotting, sort importances in increasing order
@@ -255,3 +263,206 @@ def cross_validate_feature_groups(clf, df, feature_groups, y, titles=None,
         plt.legend(loc=4)
 
     return scores_summary
+
+def summarize_training_data(df, y_name='Label'):
+    '''
+    Summarize columnar data
+
+    Input:
+      df: pandas DataFrame object containing training data
+      y_name: column name of class labels or target y values
+      
+    Returns tuple containing the following:
+      DataFrame containing column summaries
+      Number of total rows
+      Number of unique labels/categories
+    '''
+    def _is_nan(val):
+        '''
+        Runs np.isnan on a value if it's float type
+        '''
+        if isinstance(val, float):
+            return np.isnan(val)
+        return False
+
+    def _is_null_or_blank(val):
+        '''
+        Check to see if value is null or blank string
+        '''
+        # If numeric type, and is zero, return False
+        if isinstance(val, int) or isinstance(val, float):
+            if val == 0:
+                return False
+        return not val or pd.isnull(val)
+
+    def _get_uniq(series):
+        '''
+        Get number of unique items in series
+        '''
+        s = set(series.values)
+        null_exists = False
+        n_unique = 0
+        for val in s:
+            if _is_null_or_blank(val):
+                null_exists = True
+                continue
+            n_unique += 1
+        if null_exists:
+            n_unique += 1
+        return n_unique
+
+    def _get_min_max(series):
+        '''
+        Get maximum value in a pandas Series
+        '''
+        minval = np.inf
+        maxval = -np.inf
+        for val in series:
+            # Skip empty or null values
+            if _is_null_or_blank(val):
+                continue
+            try:
+                val = float(val)
+                minval = min(minval, val)
+                maxval = max(maxval, val)
+            except ValueError:
+                return np.nan, np.nan
+        if np.isinf(minval):
+            minval = np.nan
+        if np.isinf(maxval):
+            maxval = np.nan
+        return minval, maxval
+
+    summary_data = defaultdict(list)
+    n_rows = float(df.shape[0])
+    for colname in df.columns:
+        summary_data['attribute'].append(colname)
+        minval, maxval = _get_min_max(df[colname])
+        summary_data['max'].append(maxval)
+        summary_data['min'].append(minval)
+        summary_data['n_null'].append(df[colname].apply(_is_null_or_blank).sum())
+        # Counting n_uniq can be thrown off by np.nan columns, which are not able to be dedupped
+        # Therefore, must count number of np.nans in the column, and subtract appropriately
+        #n_uniq = df[colname].drop_duplicates().shape[0]
+        #n_null = df[colname].apply(_is_nan).sum()
+        #if n_null > 1:
+        #    n_uniq = n_uniq - n_null + 1
+        summary_data['n_uniq'].append(_get_uniq(df[colname]))
+
+    df_summary = pd.DataFrame(summary_data)
+    df_summary['perc_null'] = df_summary['n_null'] / n_rows
+    label_counts = df[y_name].value_counts(dropna=False).to_dict()
+    return df_summary, n_rows, label_counts
+
+def summarize_big_training_data(fname, y_name='Label', n_uniq_toomany=1000, progress_int=None):
+    '''
+    Summarize columnar data
+    
+    Input:
+      fname: input file name
+      y_name: column name of class labels or target y values
+      n_uniq_toomany: number of unique column values considered too many to continue counting
+
+    Returns tuple containing the following:
+      DataFrame containing column summaries
+      Number of total rows
+      Number of unique labels/categories
+    '''
+    # Number of rows total
+    n_rows = 0
+    # Total number of instances for each class label
+    label_counts = defaultdict(int)
+    # Total number of null values per column
+    null_counts = defaultdict(int)
+    # Max and min values per column
+    col_max = defaultdict(lambda: -np.inf)
+    col_min = defaultdict(lambda: np.inf)
+    col_numeric = defaultdict(lambda: True)
+    # Number of unique values
+    col_uniq_vals = defaultdict(set)
+    col_uniq_vals_toomany = set()
+
+    with closing(dataio.fopen(fname)) as fin:
+        reader = csv.reader(fin)
+        # Store colnames
+        colnames = reader.next()
+        for t,row in enumerate(reader):
+            # Output progress
+            if progress_int is not None and t % progress_int == 0:
+                sys.stdout.write('{}\tencountered: {}\n'.format(datetime.now(), t))
+
+            # Increment count of rows
+            n_rows += 1
+            
+            # Create dictionary mapping colnames to each row value
+            row_dict = dict(zip(colnames, row))
+            
+            # Update label couts
+            if y_name not in col_uniq_vals_toomany:
+                label_counts[row_dict[y_name]] += 1
+
+            # Loop through cols
+            for colname in colnames:
+                
+                # Update null counts
+                col_val = row_dict[colname].strip()
+                if not col_val:
+                    null_counts[colname] += 1
+                    
+                # Update max and min values
+                if col_val and col_numeric[colname]:
+                    try:
+                        col_val = float(col_val)
+                        col_max[colname] = max(col_max[colname],
+                                               col_val)
+                        col_min[colname] = min(col_min[colname],
+                                               col_val)
+                    except ValueError:
+                        col_numeric[colname] = False
+                        
+                # Update unique values per column
+                uniq_vals_thiscol = col_uniq_vals[colname]
+                if colname not in col_uniq_vals_toomany:
+                    uniq_vals_thiscol.add(col_val)
+                if len(uniq_vals_thiscol) > n_uniq_toomany:
+                    col_uniq_vals_toomany.add(colname)
+
+    summary_data = defaultdict(list)
+    for colname in colnames:
+        summary_data['attribute'].append(colname)
+        summary_data['n_null'].append(null_counts[colname])
+        summary_data['perc_null'].append(float(null_counts[colname])/n_rows)
+        colmax, colmin = None, None
+        if col_numeric[colname]:
+            colmax = col_max[colname] if not np.isinf(col_max[colname]) else None
+            colmin = col_min[colname] if not np.isinf(col_min[colname]) else None
+        summary_data['max'].append(colmax)
+        summary_data['min'].append(colmin)
+            
+        # Count number of unique values
+        if colname in col_uniq_vals_toomany:
+            n_uniq = '> {}'.format(n_uniq_toomany)
+        else:
+            n_uniq = len(col_uniq_vals[colname]) 
+        summary_data['n_uniq'].append(n_uniq)
+
+    # If there are too many y-values, set label_counts to None
+    if y_name in col_uniq_vals_toomany:
+        label_counts = None
+
+    df_summary = pd.DataFrame(summary_data)
+    return (df_summary,
+            n_rows,
+            label_counts)
+
+def count_big_file_column_values(fname, colname):
+    '''
+    Count the number of occurrances for each unique value in a column
+    Returns a defaultdict containing the value counts
+    '''
+    value_counts = defaultdict(int)
+    with closing(dataio.fopen(fname)) as fin:
+        reader = csv.DictReader(fin)
+        for row in reader:
+            value_counts[row[colname]] += 1
+    return value_counts

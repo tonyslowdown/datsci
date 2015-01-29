@@ -4,17 +4,21 @@ Description     : Module to handle data munging/wrangling
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.02.26
+Last Modified   : 2014.09.21
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
+import csv
 import numpy as np
 import pandas as pd
 import random
 import re
-import eda
+import sys
+from datetime import datetime
 from sklearn import preprocessing
 from sklearn.preprocessing import Imputer
+
+import dataio, eda
 
 def standardize_cols(df, cols=None, ignore_binary=True):
     '''
@@ -168,3 +172,59 @@ def scale_down_cols(df, cols, mvleft=6):
     for col in cols:
         df2[col] = df2[col].apply(scale_down, mvleft=mvleft)
     return df2
+
+def remove_null_big_data(fname_in, fname_out, delimiter=','):
+    '''
+    Remove all rows containing any null values
+    '''
+    with dataio.fopen(fname_in, 'r') as fin, dataio.fopen(fname_out, 'w') as fout:
+        reader = csv.reader(fin, delimiter=delimiter)
+        writer = csv.writer(fout, delimiter=delimiter)
+        writer.writerow(reader.next())
+        for row in reader:
+            if '' in row:
+                continue
+            writer.writerow(row)
+
+def remove_col_big_data(fname_in, fname_out, indices, delimiter=',', progress_int=None):
+    '''
+    Remove a column given the given index idx (0-based)
+    if progress_int can be set to an integer to set an interval to output
+    number of rows seen every given interval
+    '''
+    indices = set(indices)
+    with dataio.fopen(fname_in, 'r') as fin, dataio.fopen(fname_out, 'w') as fout:
+        reader = csv.reader(fin, delimiter=delimiter)
+        writer = csv.writer(fout, delimiter=delimiter)
+        for t,row in enumerate(reader):
+            # Output progress
+            if progress_int is not None and t % progress_int == 0:
+                sys.stdout.write('{}\tencountered: {}\n'.format(datetime.now(), t))
+            writer.writerow([x for i,x in enumerate(row) if i not in indices])
+
+def hash_features(df, columns=[]):
+    '''
+    Create numerical features for categorical data by feature hashing
+    '''
+    # Determine which columns to hash
+    if not columns:
+        columns = df.columns
+    col = columns[0]
+    hashed_df = pd.get_dummies(df[col], prefix=col, prefix_sep='_')
+    for col in columns[1:]:
+        hashed_df = hashed_df.join(pd.get_dummies(df[col], prefix=col, prefix_sep='_'))
+    
+    # Attach to non-hashed columns
+    non_hashed_cols = []
+    columns_set = set(columns)
+    for c in df.columns:
+        if c not in columns_set:
+            non_hashed_cols.append(c)
+
+    # If all columns are hashed, return the hashed df
+    if not non_hashed_cols:
+        return hashed_df
+
+    # Otherwise, join the two dfs
+    return df[non_hashed_cols].join(hashed_df)
+

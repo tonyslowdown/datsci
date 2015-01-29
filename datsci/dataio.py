@@ -4,15 +4,71 @@ Description     : Module to handle data io
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2013.09.23
-Last Modified   : 2014.02.26
+Last Modified   : 2014.09.20
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
 import csv
+import os
 import pandas as pd
 import random
+import sys
+from datetime import datetime
 
-def reservoir_sample(iterable, k, rseed=None):
+def fopen(fname, mode='r'):
+    '''
+    Given fname, a full file path as a string, return correct file handle
+    based on extension
+    File mode is either 'r' or 'w'
+    For compressed formats, assumes there is only a single file within
+    an archive
+    Can handle the following: txt, csv, tsv, zip, gz, tar.gz, tar.bz2
+    Usages may be different for various compression libraries
+    '''
+    import gzip
+    import tarfile
+    import zipfile
+
+    # Process file type
+    if not isinstance(fname, str):
+        raise TypeError('File name must be string')
+
+    fbase, fext = os.path.splitext(fname)
+    fext2 = os.path.splitext(fbase)[1] # second to last extension
+
+    # zip
+    if fext == '.zip':
+        if mode == 'w':
+            raise NotImplementedError('Cannot write to given format: {}\n'.format(fext))
+
+        f = zipfile.ZipFile(fname, "r")
+        return f.open(f.namelist()[0])
+
+    # tar.gz and tar.bz2
+    elif fext2 == '.tar':
+        if mode == 'w':
+            raise NotImplementedError('Cannot write to given format: {}\n'.format(fext2 + fext))
+
+        # tar.gz file
+        if fext == '.gz':
+            _mode = 'r:gz'
+        # tar.bz2 file
+        elif fext == '.bz2':
+            _mode = 'r:bz2'
+        f = tarfile.open(fname, _mode)
+        return f.extractfile(f.getnames()[0])
+
+    # Just gz file
+    elif fext == '.gz':
+        return gzip.open(fname, mode + 'b')
+
+    # All other formats
+    elif mode == 'r':
+        return open(fname, 'rU')
+    else:
+        return open(fname, 'wb')
+
+def reservoir_sample(iterable, k, rseed=None, progress_int=None):
     '''
     Select k random elements from an iterable containing n elements
     into a list with equal probability, where n is large and unknown.
@@ -25,6 +81,10 @@ def reservoir_sample(iterable, k, rseed=None):
     random.seed(rseed)
     selected_samples = []
     for i,el in enumerate(iterable):
+        # Output progress
+        if progress_int is not None and i % progress_int == 0:
+            sys.stdout.write('{}\tencountered: {}\n'.format(datetime.now(), i))
+
         # Fill up reservoir
         if i < k:
             selected_samples.append(el)
@@ -35,9 +95,9 @@ def reservoir_sample(iterable, k, rseed=None):
                 selected_samples[j] = el
     return selected_samples
 
-def load_subset(f, k=None, sep=',', colnames=None, header=0, rseed=None):
+def load_subset(fname, k=None, sep=',', colnames=None, header=0, rseed=None, progress_int=None):
     '''
-    Load k rows from file into a dataframe from file of buffer f
+    Load k rows from file into a dataframe from file fname
 
     Setting colnames to a list will set that as the column name of the returned DataFrame object
 
@@ -45,19 +105,39 @@ def load_subset(f, k=None, sep=',', colnames=None, header=0, rseed=None):
     '''
     # Read in entire file
     if k is None:
-        return pd.read_csv(f, sep=sep, names=colnames, header=header)
+        return pd.read_csv(fname, sep=sep, names=colnames, header=header)
     
     # Subsample from file
-    if isinstance(f, str):
-        f = open(f, 'rU')
-    reader = csv.reader(f, delimiter=sep)
+    with fopen(fname) as fin:
+        reader = csv.reader(fin, delimiter=sep)
     
-    # Handle column names logic
-    names = None
-    if header == 0:
-        names = reader.next()
-    if colnames is not None:
-        names = colnames
+        # Handle column names logic
+        names = None
+        if header == 0:
+            names = reader.next()
+        if colnames is not None:
+            names = colnames
 
-    return pd.DataFrame(reservoir_sample(reader, k, rseed=rseed),
-                        columns=names)
+        return pd.DataFrame(reservoir_sample(reader, k, rseed=rseed, progress_int=progress_int),
+                            columns=names)
+
+def head(fname, k=10, sep=','):
+    '''
+    Load first k lines of a file
+    '''
+    with fopen(fname) as fin:
+        reader = csv.reader(fin, delimiter=sep)
+        colnames = reader.next()
+        
+        if k == 0:
+            return pd.Series(colnames)
+
+        data = []
+        n = 0
+        for row in reader:
+            if n >= k:
+                break
+            data.append(row)
+            n += 1
+    
+    return pd.DataFrame(data, columns=colnames)
