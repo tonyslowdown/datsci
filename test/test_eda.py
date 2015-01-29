@@ -316,7 +316,7 @@ class TestEda(unittest.TestCase):
         for fname in ['sample1.csv', 'sample1.csv.zip', 'sample1.csv.gz',
                       'sample1.csv.tar.gz', 'sample1.csv.tar.bz2']:
             sample_file_csv = os.path.join(self.curdir, 'res', fname)
-            summary, n_rows, label_counts = eda.summarize_big_training_data(sample_file_csv, y_name='c')
+            summary, n_rows, label_counts = eda.summarize_big_training_data(sample_file_csv, y_name='c', summary_pkl=None)
 
             self.assertEqual(n_rows, 8)
             self.assertEqual(len(label_counts), 8)
@@ -337,7 +337,8 @@ class TestEda(unittest.TestCase):
 
 
         sample_file_csv = os.path.join(self.curdir, 'res', 'sample2.csv')
-        summary, n_rows, label_counts = eda.summarize_big_training_data(sample_file_csv, y_name='c')
+        summary_pkl_file = os.path.join(self.curdir, 'res', 'foo.pkl')
+        summary, n_rows, label_counts = eda.summarize_big_training_data(sample_file_csv, y_name='c', summary_pkl=summary_pkl_file)
 
         self.assertEqual(n_rows, 10)
         self.assertEqual(len(label_counts), 4)
@@ -347,34 +348,59 @@ class TestEda(unittest.TestCase):
         self.assertEqual(label_counts['33'], 2)
         self.assertEqual(label_counts['333'], 4)
         self.assertEqual(summary.shape[0], 3)
-        self.assertEqual(summary[summary['attribute']=='a']['min'].values[0], 11)
-        self.assertEqual(summary[summary['attribute']=='a']['max'].values[0], 1111111111)
-        self.assertEqual(summary[summary['attribute']=='a']['n_null'].values[0], 1)
-        self.assertEqual(summary[summary['attribute']=='a']['perc_null'].values[0], .10)
-        self.assertEqual(summary[summary['attribute']=='a']['n_uniq'].values[0], 10)
-        self.assertEqual(summary[summary['attribute']=='b']['min'].values[0], 2)
-        self.assertEqual(summary[summary['attribute']=='b']['max'].values[0], 222222222)
-        self.assertEqual(summary[summary['attribute']=='b']['n_null'].values[0], 2)
-        self.assertEqual(summary[summary['attribute']=='b']['perc_null'].values[0], .2)
-        self.assertEqual(summary[summary['attribute']=='b']['n_uniq'].values[0], 9)
-        self.assertEqual(summary[summary['attribute']=='c']['min'].values[0], 3)
-        self.assertEqual(summary[summary['attribute']=='c']['max'].values[0], 333)
-        self.assertEqual(summary[summary['attribute']=='c']['n_null'].values[0], 3)
-        self.assertEqual(summary[summary['attribute']=='c']['perc_null'].values[0], .3)
-        self.assertEqual(summary[summary['attribute']=='c']['n_uniq'].values[0], 4)
+        summary_a = summary[summary['attribute']=='a']
+        self.assertEqual(summary_a['min'].values[0], 11)
+        self.assertEqual(summary_a['max'].values[0], 1111111111)
+        self.assertEqual(summary_a['n_null'].values[0], 1)
+        self.assertEqual(summary_a['perc_null'].values[0], .10)
+        self.assertEqual(summary_a['n_uniq'].values[0], 10)
+        summary_b = summary[summary['attribute']=='b']
+        self.assertEqual(summary_b['min'].values[0], 2)
+        self.assertEqual(summary_b['max'].values[0], 222222222)
+        self.assertEqual(summary_b['n_null'].values[0], 2)
+        self.assertEqual(summary_b['perc_null'].values[0], .2)
+        self.assertEqual(summary_b['n_uniq'].values[0], 9)
+        summary_c = summary[summary['attribute']=='c']
+        self.assertEqual(summary_c['min'].values[0], 3)
+        self.assertEqual(summary_c['max'].values[0], 333)
+        self.assertEqual(summary_c['n_null'].values[0], 3)
+        self.assertEqual(summary_c['perc_null'].values[0], .3)
+        self.assertEqual(summary_c['n_uniq'].values[0], 4)
         
-    def test_count_big_file_column_values(self):
+        # Check that summary pkl file exists
+        self.assertTrue(os.path.exists(summary_pkl_file))
+        
+        # Check saved values can be loaded and is correct
+        summary2, n_rows2, label_counts2 = eda.load_summary_data(summary_pkl_file)
+        self.assertTrue(eda.df_equal(summary, summary2))
+        self.assertEqual(n_rows, n_rows2)
+        self.assertEqual(set(label_counts.items()),
+                         set(label_counts2.items()))
+
+        # Delete file
+        os.remove(summary_pkl_file)
+        self.assertFalse(os.path.exists(summary_pkl_file))
+
+        # Run again with summary_pkl option set to None
+        (summary,
+         n_rows,
+         label_counts) = eda.summarize_big_training_data(sample_file_csv,
+                                                         y_name='c',
+                                                         summary_pkl=None)
+        self.assertFalse(os.path.exists(summary_pkl_file))
+
+    def test_count_big_file_value_counts(self):
         '''
         Test counting column values in file
         '''
         sample_file_csv = os.path.join(self.curdir, 'res', 'sample4.csv')
-        value_counts = eda.count_big_file_column_values(sample_file_csv, 'a')
+        value_counts = eda.count_big_file_value_counts(sample_file_csv, 'a')
         self.assertEqual(value_counts['1'], 4)
         self.assertEqual(value_counts['0'], 2)
-        value_counts = eda.count_big_file_column_values(sample_file_csv, 'b')
+        value_counts = eda.count_big_file_value_counts(sample_file_csv, 'b')
         self.assertEqual(value_counts['x'], 3)
         self.assertEqual(value_counts['y'], 3)
-        value_counts = eda.count_big_file_column_values(sample_file_csv, 'c')
+        value_counts = eda.count_big_file_value_counts(sample_file_csv, 'c')
         self.assertEqual(value_counts['0'], 6)
 
 

@@ -4,11 +4,12 @@ Description     : Module to handle EDA (Exploratory Data Analysis)
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.10.29
+Last Modified   : 2015.01.29
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
 import csv
+import cPickle
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -354,19 +355,27 @@ def summarize_training_data(df, y_name='Label'):
     label_counts = df[y_name].value_counts(dropna=False).to_dict()
     return df_summary, n_rows, label_counts
 
-def summarize_big_training_data(fname, y_name='Label', n_uniq_toomany=1000, progress_int=None):
+def summarize_big_training_data(fname,
+                                y_name='Label',
+                                n_uniq_toomany=1000,
+                                progress_int=None,
+                                summary_pkl='summary_data.pkl'):
     '''
     Summarize columnar data
     
     Input:
       fname: input file name
       y_name: column name of class labels or target y values
-      n_uniq_toomany: number of unique column values considered too many to continue counting
+      n_uniq_toomany: number of unique column values considered too many to 
+                      continue counting
+      progress_int: Output progress every progress_int number of rows of input
+      summary_pkl: Name of output .pkl file for storing summary data. Set None
+                   to prevent output
 
     Returns tuple containing the following:
       DataFrame containing column summaries
       Number of total rows
-      Number of unique labels/categories
+      Dictionary containing y(label) value counts
     '''
     # Number of rows total
     n_rows = 0
@@ -451,11 +460,29 @@ def summarize_big_training_data(fname, y_name='Label', n_uniq_toomany=1000, prog
         label_counts = None
 
     df_summary = pd.DataFrame(summary_data)
+
+    if summary_pkl is not None:
+        summary_data = {'summary': df_summary,
+                        'n_rows': n_rows,
+                        'label_counts': label_counts}
+        with open(summary_pkl, 'wb') as f:
+            cPickle.dump(summary_data, f)
+
     return (df_summary,
             n_rows,
             label_counts)
 
-def count_big_file_column_values(fname, colname):
+def load_summary_data(summary_pkl='summary_data.pkl'):
+    '''
+    Load summary pickle data
+    '''
+    with open(summary_pkl, 'rb') as f:
+        summary_data = cPickle.load(f)
+    return (summary_data['summary'],
+            summary_data['n_rows'],
+            summary_data['label_counts'])
+
+def count_big_file_value_counts(fname, colname):
     '''
     Count the number of occurrances for each unique value in a column
     Returns a defaultdict containing the value counts
