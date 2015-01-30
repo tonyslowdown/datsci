@@ -4,7 +4,7 @@ Description     : Module to handle data munging/wrangling
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.09.21
+Last Modified   : 2015.01.30
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -23,7 +23,7 @@ import dataio, eda
 def standardize_cols(df, cols=None, ignore_binary=True):
     '''
     Standardize selected columns of a df
-    if ignore_bingary is True, then do not standardize columns containing binary values
+    if ignore_binary is True, then do not standardize columns containing binary values
     '''
     # If cols is blank, use all columns in the dataframe
     _cols = cols
