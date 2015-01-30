@@ -4,7 +4,7 @@ Description     : Module to handle EDA (Exploratory Data Analysis)
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2015.01.29
+Last Modified   : 2015.01.30
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -29,19 +29,30 @@ def df_equal(df1, df2, decimals=None):
     Compare the values of two pandas DataFrame objects element by element,
     and if every single element is equal, return True
 
-    Parameter decimals determines the number of decimal places to round decimal values before comparing
+    Parameter decimals determines the number of decimal places to round decimal
+    values before comparing
     '''
     # First, compare the sizes
     if df1.shape != df2.shape:
         return False
 
+    # Compare values, and round decimals
     n_elements = np.multiply(*df1.shape)
     l1 = np.squeeze(df1.values.reshape(n_elements, 1))
     l2 = np.squeeze(df2.values.reshape(n_elements, 1))
     if decimals is not None and isinstance(decimals, int):
         l1 = np.round(l1, decimals=decimals)
         l2 = np.round(l2, decimals=decimals)
-    return (l1 == l2).all()
+    for t in range(len(l1)):
+        a,b = l1[t], l2[t]
+        # If both are np.nan, skip
+        if not isinstance(a, str) and not isinstance(b, str):
+            if np.isnan(a) and np.isnan(b):
+                continue
+        # Regular comparison
+        if a != b:
+            return False
+    return True
 
 def find_uninfo_cols(df):
     '''
@@ -265,13 +276,15 @@ def cross_validate_feature_groups(clf, df, feature_groups, y, titles=None,
 
     return scores_summary
 
-def summarize_training_data(df, y_name='Label'):
+def summarize_training_data(df, y_name='Label', summary_pkl='summary_data.pkl'):
     '''
     Summarize columnar data
 
     Input:
       df: pandas DataFrame object containing training data
       y_name: column name of class labels or target y values
+      summary_pkl: Name of output .pkl file for storing summary data.
+                   Set to None in order to prevent output
       
     Returns tuple containing the following:
       DataFrame containing column summaries
@@ -353,6 +366,14 @@ def summarize_training_data(df, y_name='Label'):
     df_summary = pd.DataFrame(summary_data)
     df_summary['perc_null'] = df_summary['n_null'] / n_rows
     label_counts = df[y_name].value_counts(dropna=False).to_dict()
+
+    if summary_pkl is not None:
+        summary_data = {'summary': df_summary,
+                        'n_rows': n_rows,
+                        'label_counts': label_counts}
+        with open(summary_pkl, 'wb') as f:
+            cPickle.dump(summary_data, f)
+    
     return df_summary, n_rows, label_counts
 
 def summarize_big_training_data(fname,
@@ -369,8 +390,8 @@ def summarize_big_training_data(fname,
       n_uniq_toomany: number of unique column values considered too many to 
                       continue counting
       progress_int: Output progress every progress_int number of rows of input
-      summary_pkl: Name of output .pkl file for storing summary data. Set None
-                   to prevent output
+      summary_pkl: Name of output .pkl file for storing summary data.
+                   Set to None in order to prevent output
 
     Returns tuple containing the following:
       DataFrame containing column summaries
@@ -468,9 +489,7 @@ def summarize_big_training_data(fname,
         with open(summary_pkl, 'wb') as f:
             cPickle.dump(summary_data, f)
 
-    return (df_summary,
-            n_rows,
-            label_counts)
+    return df_summary, n_rows, label_counts
 
 def load_summary_data(summary_pkl='summary_data.pkl'):
     '''

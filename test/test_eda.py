@@ -4,7 +4,7 @@ Description     : Unit test for eda.py
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2014.10.29
+Last Modified   : 2015.01.30
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -78,9 +78,9 @@ class TestEda(unittest.TestCase):
                             [3.1234, 4.1232]])
         self.assertTrue(eda.df_equal(df1, df2, decimals=3))
 
-        df1 = pd.DataFrame([[1.1234, 2.1234],
+        df1 = pd.DataFrame([[np.nan, 2.1234],
                             [3.1234, 5.1234123]])
-        df2 = pd.DataFrame([[1.1234, 2.1234],
+        df2 = pd.DataFrame([[np.nan, 2.1234],
                             [3.1234, 5.123412]])
         self.assertTrue(eda.df_equal(df1, df2, decimals=6))
 
@@ -237,7 +237,11 @@ class TestEda(unittest.TestCase):
         '''
         sample_file_csv = os.path.join(self.curdir, 'res', 'sample1.csv')
         df = pd.read_csv(sample_file_csv)
-        summary, n_rows, label_counts = eda.summarize_training_data(df, y_name='c')
+        (summary,
+         n_rows,
+         label_counts) = eda.summarize_training_data(df,
+                                                     y_name='c',
+                                                     summary_pkl=None)
         self.assertEqual(n_rows, 8)
         self.assertEqual(len(label_counts), 8)
         self.assertEqual(set(label_counts.values()), {1})
@@ -257,7 +261,11 @@ class TestEda(unittest.TestCase):
 
         sample_file_csv = os.path.join(self.curdir, 'res', 'sample2.csv')
         df = pd.read_csv(sample_file_csv)
-        summary, n_rows, label_counts = eda.summarize_training_data(df, y_name='c')
+        (summary,
+         n_rows,
+         label_counts) = eda.summarize_training_data(df,
+                                                     y_name='c',
+                                                     summary_pkl=None)
         self.assertEqual(n_rows, 10)
         self.assertEqual(len(label_counts), 4)
         self.assertEqual(set(label_counts.values()), {1,2,3,4})
@@ -266,25 +274,33 @@ class TestEda(unittest.TestCase):
         self.assertEqual(label_counts[33], 2)
         self.assertEqual(label_counts[333], 4)
         self.assertEqual(summary.shape[0], 3)
-        self.assertEqual(summary[summary['attribute']=='a']['min'].values[0], 11)
-        self.assertEqual(summary[summary['attribute']=='a']['max'].values[0], 1111111111)
-        self.assertEqual(summary[summary['attribute']=='a']['n_null'].values[0], 1)
-        self.assertEqual(summary[summary['attribute']=='a']['perc_null'].values[0], .10)
-        self.assertEqual(summary[summary['attribute']=='a']['n_uniq'].values[0], 10)
-        self.assertEqual(summary[summary['attribute']=='b']['min'].values[0], 2)
-        self.assertEqual(summary[summary['attribute']=='b']['max'].values[0], 222222222)
-        self.assertEqual(summary[summary['attribute']=='b']['n_null'].values[0], 2)
-        self.assertEqual(summary[summary['attribute']=='b']['perc_null'].values[0], .2)
-        self.assertEqual(summary[summary['attribute']=='b']['n_uniq'].values[0], 9)
-        self.assertEqual(summary[summary['attribute']=='c']['min'].values[0], 3)
-        self.assertEqual(summary[summary['attribute']=='c']['max'].values[0], 333)
-        self.assertEqual(summary[summary['attribute']=='c']['n_null'].values[0], 3)
-        self.assertEqual(summary[summary['attribute']=='c']['perc_null'].values[0], .3)
-        self.assertEqual(summary[summary['attribute']=='c']['n_uniq'].values[0], 4)
+        summary_a = summary[summary['attribute']=='a']
+        self.assertEqual(summary_a['min'].values[0], 11)
+        self.assertEqual(summary_a['max'].values[0], 1111111111)
+        self.assertEqual(summary_a['n_null'].values[0], 1)
+        self.assertEqual(summary_a['perc_null'].values[0], .10)
+        self.assertEqual(summary_a['n_uniq'].values[0], 10)
+        summary_b = summary[summary['attribute']=='b']
+        self.assertEqual(summary_b['min'].values[0], 2)
+        self.assertEqual(summary_b['max'].values[0], 222222222)
+        self.assertEqual(summary_b['n_null'].values[0], 2)
+        self.assertEqual(summary_b['perc_null'].values[0], .2)
+        self.assertEqual(summary_b['n_uniq'].values[0], 9)
+        summary_c = summary[summary['attribute']=='c']
+        self.assertEqual(summary_c['min'].values[0], 3)
+        self.assertEqual(summary_c['max'].values[0], 333)
+        self.assertEqual(summary_c['n_null'].values[0], 3)
+        self.assertEqual(summary_c['perc_null'].values[0], .3)
+        self.assertEqual(summary_c['n_uniq'].values[0], 4)
 
         sample_file_csv = os.path.join(self.curdir, 'res', 'sample3.csv')
+        summary_pkl_file = os.path.join(self.curdir, 'res', 'foo.pkl')
         df = pd.read_csv(sample_file_csv)
-        summary, n_rows, label_counts = eda.summarize_training_data(df, y_name='z')
+        (summary,
+         n_rows,
+         label_counts) = eda.summarize_training_data(df,
+                                                     y_name='z',
+                                                     summary_pkl=summary_pkl_file)
         self.assertEqual(n_rows, 10)
         self.assertEqual(len(label_counts), 4)
         self.assertEqual(set(label_counts.values()), {1,2,3,4})
@@ -293,22 +309,47 @@ class TestEda(unittest.TestCase):
         self.assertEqual(label_counts['cc'], 2)
         self.assertEqual(label_counts['ccc'], 4)
         self.assertEqual(summary.shape[0], 3)
-        self.assertTrue(pd.isnull(summary[summary['attribute']=='x']['min'].values[0]))
-        self.assertTrue(pd.isnull(summary[summary['attribute']=='x']['max'].values[0]))
-        self.assertEqual(summary[summary['attribute']=='x']['n_null'].values[0], 1)
-        self.assertEqual(summary[summary['attribute']=='x']['perc_null'].values[0], .10)
-        self.assertEqual(summary[summary['attribute']=='x']['n_uniq'].values[0], 10)
-        self.assertTrue(pd.isnull(summary[summary['attribute']=='y']['min'].values[0]))
-        self.assertTrue(pd.isnull(summary[summary['attribute']=='y']['max'].values[0]))
-        self.assertEqual(summary[summary['attribute']=='y']['n_null'].values[0], 2)
-        self.assertEqual(summary[summary['attribute']=='y']['perc_null'].values[0], .2)
-        self.assertEqual(summary[summary['attribute']=='y']['n_uniq'].values[0], 9)
-        self.assertTrue(pd.isnull(summary[summary['attribute']=='z']['min'].values[0]))
-        self.assertTrue(pd.isnull(summary[summary['attribute']=='z']['max'].values[0]))
-        self.assertEqual(summary[summary['attribute']=='z']['n_null'].values[0], 3)
-        self.assertEqual(summary[summary['attribute']=='z']['perc_null'].values[0], .3)
-        self.assertEqual(summary[summary['attribute']=='z']['n_uniq'].values[0], 4)
+        summary_x = summary[summary['attribute']=='x']
+        self.assertTrue(pd.isnull(summary_x['min'].values[0]))
+        self.assertTrue(pd.isnull(summary_x['max'].values[0]))
+        self.assertEqual(summary_x['n_null'].values[0], 1)
+        self.assertEqual(summary_x['perc_null'].values[0], .10)
+        self.assertEqual(summary_x['n_uniq'].values[0], 10)
+        summary_y = summary[summary['attribute']=='y']
+        self.assertTrue(pd.isnull(summary_y['min'].values[0]))
+        self.assertTrue(pd.isnull(summary_y['max'].values[0]))
+        self.assertEqual(summary_y['n_null'].values[0], 2)
+        self.assertEqual(summary_y['perc_null'].values[0], .2)
+        self.assertEqual(summary_y['n_uniq'].values[0], 9)
+        summary_z = summary[summary['attribute']=='z']
+        self.assertTrue(pd.isnull(summary_z['min'].values[0]))
+        self.assertTrue(pd.isnull(summary_z['max'].values[0]))
+        self.assertEqual(summary_z['n_null'].values[0], 3)
+        self.assertEqual(summary_z['perc_null'].values[0], .3)
+        self.assertEqual(summary_z['n_uniq'].values[0], 4)
 
+        # Check that summary pkl file exists
+        self.assertTrue(os.path.exists(summary_pkl_file))
+
+        # Check saved values can be loaded and is correct
+        summary2, n_rows2, label_counts2 = eda.load_summary_data(summary_pkl_file)
+        self.assertTrue(eda.df_equal(summary, summary2))
+        self.assertEqual(n_rows, n_rows2)
+        self.assertEqual(str(list(label_counts.items())),
+                         str(list(label_counts2.items())))
+
+        # Delete file
+        os.remove(summary_pkl_file)
+        self.assertFalse(os.path.exists(summary_pkl_file))
+
+        # Run again with summary_pkl option set to None
+        (summary,
+         n_rows,
+         label_counts) = eda.summarize_training_data(df,
+                                                     y_name='z',
+                                                     summary_pkl=None)
+        self.assertFalse(os.path.exists(summary_pkl_file))
+        
     def test_summarize_big_training_data(self):
         '''
         Test large data file summarization
@@ -316,29 +357,40 @@ class TestEda(unittest.TestCase):
         for fname in ['sample1.csv', 'sample1.csv.zip', 'sample1.csv.gz',
                       'sample1.csv.tar.gz', 'sample1.csv.tar.bz2']:
             sample_file_csv = os.path.join(self.curdir, 'res', fname)
-            summary, n_rows, label_counts = eda.summarize_big_training_data(sample_file_csv, y_name='c', summary_pkl=None)
+            (summary,
+             n_rows,
+             label_counts) = eda.summarize_big_training_data(sample_file_csv,
+                                                             y_name='c',
+                                                             summary_pkl=None)
 
             self.assertEqual(n_rows, 8)
             self.assertEqual(len(label_counts), 8)
             self.assertEqual(set(label_counts.values()), {1})
             self.assertEqual(summary.shape[0], 3)
-            self.assertEqual(summary[summary['attribute']=='a']['min'].values[0], 1)
-            self.assertEqual(summary[summary['attribute']=='a']['max'].values[0], 11111111)
-            self.assertEqual(summary[summary['attribute']=='a']['n_null'].values[0], 0)
-            self.assertEqual(summary[summary['attribute']=='a']['perc_null'].values[0], 0)
-            self.assertEqual(summary[summary['attribute']=='b']['min'].values[0], 2)
-            self.assertEqual(summary[summary['attribute']=='b']['max'].values[0], 22222222)
-            self.assertEqual(summary[summary['attribute']=='b']['n_null'].values[0], 0)
-            self.assertEqual(summary[summary['attribute']=='b']['perc_null'].values[0], 0)
-            self.assertEqual(summary[summary['attribute']=='c']['min'].values[0], 3)
-            self.assertEqual(summary[summary['attribute']=='c']['max'].values[0], 33333333)
-            self.assertEqual(summary[summary['attribute']=='c']['n_null'].values[0], 0)
-            self.assertEqual(summary[summary['attribute']=='c']['perc_null'].values[0], 0)
+            summary_a = summary[summary['attribute']=='a']
+            self.assertEqual(summary_a['min'].values[0], 1)
+            self.assertEqual(summary_a['max'].values[0], 11111111)
+            self.assertEqual(summary_a['n_null'].values[0], 0)
+            self.assertEqual(summary_a['perc_null'].values[0], 0)
+            summary_b = summary[summary['attribute']=='b']
+            self.assertEqual(summary_b['min'].values[0], 2)
+            self.assertEqual(summary_b['max'].values[0], 22222222)
+            self.assertEqual(summary_b['n_null'].values[0], 0)
+            self.assertEqual(summary_b['perc_null'].values[0], 0)
+            summary_c = summary[summary['attribute']=='c']
+            self.assertEqual(summary_c['min'].values[0], 3)
+            self.assertEqual(summary_c['max'].values[0], 33333333)
+            self.assertEqual(summary_c['n_null'].values[0], 0)
+            self.assertEqual(summary_c['perc_null'].values[0], 0)
 
 
         sample_file_csv = os.path.join(self.curdir, 'res', 'sample2.csv')
         summary_pkl_file = os.path.join(self.curdir, 'res', 'foo.pkl')
-        summary, n_rows, label_counts = eda.summarize_big_training_data(sample_file_csv, y_name='c', summary_pkl=summary_pkl_file)
+        (summary,
+         n_rows,
+         label_counts) = eda.summarize_big_training_data(sample_file_csv,
+                                                         y_name='c',
+                                                         summary_pkl=summary_pkl_file)
 
         self.assertEqual(n_rows, 10)
         self.assertEqual(len(label_counts), 4)
