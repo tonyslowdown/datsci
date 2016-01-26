@@ -4,25 +4,42 @@ Description     : Module to handle EDA (Exploratory Data Analysis)
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2015.01.30
+Last Modified   : 2015.12.31
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
 import csv
-import cPickle
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import Queue
+try:
+    import queue
+except ImportError:
+    import Queue as queue
 import sys
 from collections import defaultdict
 from contextlib import closing
 from datetime import datetime
-from mpltools import style; style.use('ggplot')
-from sklearn import cross_validation
-from sklearn.ensemble import RandomForestClassifier
+from matplotlib import style
+style.use('ggplot')
+from prettytable import PrettyTable
 
-import dataio
+from datsci import dataio
+
+
+def pprint(df):
+    '''
+    Pretty-print data frame
+    '''
+    table = PrettyTable([''] + list(df.columns))
+    for row in df.itertuples():
+        table.add_row(row)
+    print(table)
+
 
 def df_equal(df1, df2, decimals=None):
     '''
@@ -44,7 +61,7 @@ def df_equal(df1, df2, decimals=None):
         l1 = np.round(l1, decimals=decimals)
         l2 = np.round(l2, decimals=decimals)
     for t in range(len(l1)):
-        a,b = l1[t], l2[t]
+        a, b = l1[t], l2[t]
         # If both are np.nan, skip
         if not isinstance(a, str) and not isinstance(b, str):
             if np.isnan(a) and np.isnan(b):
@@ -54,6 +71,7 @@ def df_equal(df1, df2, decimals=None):
             return False
     return True
 
+
 def find_uninfo_cols(df):
     '''
     Find uninformative columns
@@ -62,16 +80,20 @@ def find_uninfo_cols(df):
     counts = df.apply(lambda col: col[~col.isnull()].nunique())
     return list(counts[counts == 1].index)
 
+
 def find_null_cols(df, frac=.8):
     '''
     Find columns containing >= frac null values
     '''
-    null_fracs = df.apply(lambda col: col[col.isnull()].size) / float(df.shape[0])
+    f = lambda col: col[col.isnull()].size / float(df.shape[0])
+    null_fracs = df.apply(f)
     return list(null_fracs[null_fracs >= frac].index)
+
 
 def find_binary_cols(df):
     '''
-    Given a dataframe, return the names of columns containing only binary values {0,1}
+    Given a dataframe, return the names of columns containing
+    only binary values {0,1}
     '''
     binary_cols = []
     for cname in df:
@@ -83,10 +105,39 @@ def find_binary_cols(df):
             continue
         # |{0,1} ^ {0|1}| == 1
         # |{0,1} ^ {0,1}| == 2
-        unique_vals_set = set(unique_vals)        
-        if len(unique_vals_set.intersection({0,1})) == unique_vals_len:
+        unique_vals_set = set(unique_vals)
+        if len(unique_vals_set.intersection({0, 1})) == unique_vals_len:
             binary_cols.append(cname)
     return binary_cols
+
+
+def summarize_nulls(train, test, add_info_names=[], add_info_dicts=[]):
+    '''
+    Summarize null values in train and test data.
+    Output contains only columns that have null values.
+    '''
+    n_train, n_test = train.shape[0], test.shape[0]
+    print('Num train samples: {}'.format(n_train))
+    print('Num test samples: {}'.format(n_test))
+    null_summary = []
+    for c in train.columns:
+        num_nan_train = train[train[c].isnull()].shape[0]
+        perc_nan_train = 100.0 * num_nan_train / n_train
+        try:
+            num_nan_test = test[test[c].isnull()].shape[0]
+        except KeyError:
+            num_nan_test = n_test
+        perc_nan_test = 100.0 * num_nan_test / n_test
+        if num_nan_train or num_nan_test > 0:
+            row = [c, num_nan_train, perc_nan_train,
+                   num_nan_test, perc_nan_test]
+            row += [d[c] for d in add_info_dicts]
+            null_summary.append(row)
+    colnames = ['Column', 'Null Train', '% Train',
+                'Null Test', '% Test']
+    colnames += add_info_names
+    return pd.DataFrame(null_summary, columns=colnames)
+
 
 def plot_null(df, title='nulls', sort=True, percent=True):
     '''
@@ -101,6 +152,7 @@ def plot_null(df, title='nulls', sort=True, percent=True):
     plt.title(title)
     return col_nulls
 
+
 def plot_inf(df, title='infs', sort=True, percent=True):
     '''
     Plot the infs in each column of dataframe
@@ -113,6 +165,7 @@ def plot_inf(df, title='infs', sort=True, percent=True):
     plt.plot(col_infs);
     plt.title(title)
     return col_infs
+
 
 def plot_null_inf(df, sort=True, percent=True):
     '''
@@ -128,10 +181,11 @@ def plot_null_inf(df, sort=True, percent=True):
     plt.show()
     return col_nulls, col_inf
 
+
 def get_feature_clusters(df, cols=None, thresh=0.95, method='pearson'):
     '''
-    Find clusters of correlated columns by first computing correlation between the columns
-    and then grouping the columns based on a threshold
+    Find clusters of correlated columns by first computing correlation between
+    the columns and then grouping the columns based on a threshold
 
     Returns a list containing sets of clustered columns
 
@@ -159,7 +213,7 @@ def get_feature_clusters(df, cols=None, thresh=0.95, method='pearson'):
         Given a node n, find all connected nodes
         Uses BFS
         '''
-        q = Queue.Queue(len(nodes))
+        q = queue.Queue(len(nodes))
         q.put(n)
         seen = set()
         seen.add(n)
@@ -178,103 +232,6 @@ def get_feature_clusters(df, cols=None, thresh=0.95, method='pearson'):
             clusters.append(get_cluster(cn))
     return clusters
 
-def rank_order_features(X, y, clf=None, plot=True):
-    '''
-    Rank order features based on their importance based on a random forest classifer
-
-    Taken from DataGotham 2013 Data Science Tutorial, Feature Engineering
-    http://nbviewer.ipython.org/urls/raw2.github.com/yhat/DataGotham2013/master/notebooks/7%20-%20Feature%20Engineering.ipynb?create=1
-    '''
-    if clf is None:
-        clf = RandomForestClassifier(n_estimators=50)
-    clf.fit(X, y);
-    importances = clf.feature_importances_
-    # For plotting, sort importances in increasing order
-    sorted_idx = np.argsort(importances)
-    colnames_sorted = X.columns[sorted_idx]
-    importances_sorted = importances[sorted_idx]
-    if plot:
-        padding = np.arange(X.shape[1]) + 0.5
-        plt.barh(padding, importances_sorted, align='center')
-        plt.yticks(padding, colnames_sorted)
-        plt.xlabel("Relative Importance")
-        plt.title("Variable Importance")
-        plt.show()
-    # For return values, return the importances in decreasing order
-    return colnames_sorted[::-1], importances_sorted[::-1]
-
-def generate_important_features(col_clusts, col_order):
-    '''
-    Given a list of clusters containing column names and a list of ordered column names,
-    generate important column names one by one, skipping columns who belong to clusters
-    where a member of the cluster has already been returned.
-
-    col_clusts is in the format [set(), set(), set()] where each set represents a column
-    col_order is an ordered collection containing ordered column names.
-    '''
-    # Create a dictionary of column names to the index of the cluster they belong to
-    col2clustname = {}
-    for i,clust in enumerate(col_clusts):
-       for col in clust:
-           col2clustname[col] = i
-
-    # Maintain a set of cluster names where a member of the cluster has already been returned
-    clusts_visited = set()
-    for c in col_order:
-        if col2clustname[c] not in clusts_visited:
-            clusts_visited.add(col2clustname[c])
-            yield c
-
-def cross_validate_feature_groups(clf, df, feature_groups, y, titles=None, 
-                                  cv=10, plot=True, plots_per_row=4):
-    '''
-    Given a classifier and a list of feature groups, run cross-validation on the feature groups
-    and generate plots on the scores, and return a dataframe of score summaries.
-    '''
-    # Ensure that the length of titles is equal to the length of feature groups
-    len_feature_groups = len(feature_groups)
-    if (titles is not None) and (len(titles) != len_feature_groups):
-        raise ValueError('Length of titles must be equal to length of feature groups')
-
-    # If titles are not set, then set numeric titles
-    if titles is None:
-        titles = range(len_feature_groups)
-
-    # If plot is turned on
-    if plot:
-        fig = plt.figure(figsize=(16,10))
-        n_rows = np.ceil(len_feature_groups / float(plots_per_row))
-
-    ax0 = None
-    g2scores = {}
-    for i,g in enumerate(feature_groups):
-        scores = cross_validation.cross_val_score(clf, df[g], y, cv=cv)
-        g2scores[titles[i]] = {'mean': scores.mean(),
-                               'max': scores.max(),
-                               'min': scores.min()}
-        # If plot is turned on
-        if plot:
-            if i == 0:
-                ax0 = plt.subplot(n_rows, plots_per_row, i + 1)
-            else:
-                plt.subplot(n_rows, plots_per_row, i + 1, sharey=ax0)
-            plt.plot(scores);
-            plt.title(titles[i])
-    
-    # Show plot
-    if plot:
-        fig.tight_layout()
-
-    # Return scores summary
-    scores_summary = pd.DataFrame(g2scores)[titles]
-
-    # Bar graph of the scores summary
-    if plot:
-        scores_summary.transpose().plot(kind='bar', figsize=(16,8))
-        plt.title('Scores Summary')
-        plt.legend(loc=4)
-
-    return scores_summary
 
 def summarize_training_data(df, y_name='Label', summary_pkl='summary_data.pkl'):
     '''
@@ -372,9 +329,9 @@ def summarize_training_data(df, y_name='Label', summary_pkl='summary_data.pkl'):
                         'n_rows': n_rows,
                         'label_counts': label_counts}
         with open(summary_pkl, 'wb') as f:
-            cPickle.dump(summary_data, f)
-    
+            pickle.dump(summary_data, f)
     return df_summary, n_rows, label_counts
+
 
 def summarize_big_training_data(fname,
                                 y_name='Label',
@@ -487,19 +444,21 @@ def summarize_big_training_data(fname,
                         'n_rows': n_rows,
                         'label_counts': label_counts}
         with open(summary_pkl, 'wb') as f:
-            cPickle.dump(summary_data, f)
+            pickle.dump(summary_data, f)
 
     return df_summary, n_rows, label_counts
+
 
 def load_summary_data(summary_pkl='summary_data.pkl'):
     '''
     Load summary pickle data
     '''
     with open(summary_pkl, 'rb') as f:
-        summary_data = cPickle.load(f)
+        summary_data = pickle.load(f)
     return (summary_data['summary'],
             summary_data['n_rows'],
             summary_data['label_counts'])
+
 
 def count_big_file_value_counts(fname, colname):
     '''
