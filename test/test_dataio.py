@@ -41,7 +41,7 @@ class TestIO(unittest.TestCase):
         # txt file
         sample_file = os.path.join(self.curdir, 'res', 'sample1.txt')
         f = dataio.fopen(sample_file)
-        self.assertTrue(isinstance(f, file))
+        self.assertTrue(isinstance(f, _io.TextIOWrapper))
         self.assertEqual(f.next().strip().split('\t')[0], 'a')
         self.assertEqual(f.next().strip().split('\t')[1], '2')
         self.assertEqual(f.next().strip().split('\t')[2], '33')
@@ -49,7 +49,7 @@ class TestIO(unittest.TestCase):
         # csv file
         sample_file = os.path.join(self.curdir, 'res', 'sample1.csv')
         f = dataio.fopen(sample_file)
-        self.assertTrue(isinstance(f, file))
+        self.assertTrue(isinstance(f, _io.TextIOWrapper))
         self.assertEqual(f.next().strip().split(',')[0], 'a')
         self.assertEqual(f.next().strip().split(',')[1], '2')
         self.assertEqual(f.next().strip().split(',')[2], '33')
@@ -57,7 +57,7 @@ class TestIO(unittest.TestCase):
         # tsv file
         sample_file = os.path.join(self.curdir, 'res', 'sample1.tsv')
         f = dataio.fopen(sample_file)
-        self.assertTrue(isinstance(f, file))
+        self.assertTrue(isinstance(f, _io.TextIOWrapper))
         self.assertEqual(f.next().strip().split('\t')[0], 'a')
         self.assertEqual(f.next().strip().split('\t')[1], '2')
         self.assertEqual(f.next().strip().split('\t')[2], '33')
@@ -69,7 +69,7 @@ class TestIO(unittest.TestCase):
         self.assertEqual(f.next().strip().split(',')[0], 'a')
         self.assertEqual(f.next().strip().split(',')[1], '2')
         self.assertEqual(f.next().strip().split(',')[2], '33')
-    
+
         # gz file
         sample_file = os.path.join(self.curdir, 'res', 'sample1.csv.gz')
         f = dataio.fopen(sample_file)
@@ -137,7 +137,7 @@ class TestIO(unittest.TestCase):
         # Test subset sampling using same random seed as before
         data_sample2 = dataio.reservoir_sample(data, 5, rseed=1)
         self.assertEqual(data_sample, data_sample2)
-        
+
         # Test sampling the entire data
         data_sample = dataio.reservoir_sample(data, len(data))
         self.assertEqual(data_sample, data)
@@ -146,7 +146,7 @@ class TestIO(unittest.TestCase):
         data_sample = dataio.reservoir_sample(data, 7)
         data_sample2 = dataio.reservoir_sample(data, 7)
         self.assertNotEqual(data_sample, data_sample2)
-    
+
     def test_load_subset(self):
         '''
         Test loading a subset of data from filehandle to a dataframe
@@ -164,7 +164,7 @@ class TestIO(unittest.TestCase):
         sample_data_nocols_shape = (sample_file_length, sample_cols_len)
         mycols = ['x','y','z']
         autocols = [0, 1, 2]
-        
+
         #===========================================================
         # Reading entire file
 
@@ -216,7 +216,7 @@ class TestIO(unittest.TestCase):
         df = dataio.load_subset(sample_file, k=100, header=None, colnames=mycols)
         self.assertEqual(df.shape, sample_data_nocols_shape)
         self.assertEqual(list(df.columns), mycols)
-        
+
         #===========================================================
         # Reading subset
 
@@ -279,7 +279,7 @@ class TestIO(unittest.TestCase):
         a1 = np.squeeze(df.values.reshape(np.multiply(*df.shape),1))
         a2 = np.squeeze(df2.values.reshape(np.multiply(*df.shape),1))
         self.assertTrue((a1 == a2).all())
-        
+
         # rseed = None, k = 5
         df = dataio.load_subset(sample_file_txt, sep='\t', k=5, header=None)
         df2 = dataio.load_subset(sample_file_txt, sep='\t', k=5, header=None)

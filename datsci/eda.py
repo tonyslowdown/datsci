@@ -4,7 +4,7 @@ Description     : Module to handle EDA (Exploratory Data Analysis)
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2015.12.31
+Last Modified   : 2016.03.14
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -27,6 +27,7 @@ from datetime import datetime
 from matplotlib import style
 style.use('ggplot')
 from prettytable import PrettyTable
+from sklearn.decomposition import PCA
 
 from datsci import dataio
 
@@ -43,6 +44,7 @@ def pprint(df):
 
 def df_equal(df1, df2, decimals=None):
     '''
+    TODO: Rewrite this using columnar comparisons, using np.allclose
     Compare the values of two pandas DataFrame objects element by element,
     and if every single element is equal, return True
 
@@ -72,9 +74,9 @@ def df_equal(df1, df2, decimals=None):
     return True
 
 
-def find_uninfo_cols(df):
+def find_const_cols(df):
     '''
-    Find uninformative columns
+    Find constant (uninformative) columns
     i.e. columns with all the same values (excluding nulls)
     '''
     counts = df.apply(lambda col: col[~col.isnull()].nunique())
@@ -109,6 +111,28 @@ def find_binary_cols(df):
         if len(unique_vals_set.intersection({0, 1})) == unique_vals_len:
             binary_cols.append(cname)
     return binary_cols
+
+
+def find_extreme_cols(df, T=1000):
+    '''
+    Return a list of column names that have extreme values that might
+    be in place of NaNs, i.e. -9999999
+    Checks each column to see if abs(max|min) >= T * (75th percentile)
+    '''
+    possible_cols = []
+    for c in df.columns:
+
+        # Skip string columns
+        if df[c].dtype == np.dtype('O'):
+            continue
+
+        d = df[c].describe()
+        minval = abs(d['min'])
+        maxval = abs(d['max'])
+        thresh = abs(d['75%'] * T)
+        if minval >= T or maxval >= T:
+            possible_cols.append(c)
+    return possible_cols
 
 
 def summarize_nulls(train, test, add_info_names=[], add_info_dicts=[]):
@@ -242,7 +266,7 @@ def summarize_training_data(df, y_name='Label', summary_pkl='summary_data.pkl'):
       y_name: column name of class labels or target y values
       summary_pkl: Name of output .pkl file for storing summary data.
                    Set to None in order to prevent output
-      
+
     Returns tuple containing the following:
       DataFrame containing column summaries
       Number of total rows
@@ -340,11 +364,11 @@ def summarize_big_training_data(fname,
                                 summary_pkl='summary_data.pkl'):
     '''
     Summarize columnar data
-    
+
     Input:
       fname: input file name
       y_name: column name of class labels or target y values
-      n_uniq_toomany: number of unique column values considered too many to 
+      n_uniq_toomany: number of unique column values considered too many to
                       continue counting
       progress_int: Output progress every progress_int number of rows of input
       summary_pkl: Name of output .pkl file for storing summary data.
@@ -380,22 +404,22 @@ def summarize_big_training_data(fname,
 
             # Increment count of rows
             n_rows += 1
-            
+
             # Create dictionary mapping colnames to each row value
             row_dict = dict(zip(colnames, row))
-            
+
             # Update label couts
             if y_name not in col_uniq_vals_toomany:
                 label_counts[row_dict[y_name]] += 1
 
             # Loop through cols
             for colname in colnames:
-                
+
                 # Update null counts
                 col_val = row_dict[colname].strip()
                 if not col_val:
                     null_counts[colname] += 1
-                    
+
                 # Update max and min values
                 if col_val and col_numeric[colname]:
                     try:
@@ -406,7 +430,7 @@ def summarize_big_training_data(fname,
                                                col_val)
                     except ValueError:
                         col_numeric[colname] = False
-                        
+
                 # Update unique values per column
                 uniq_vals_thiscol = col_uniq_vals[colname]
                 if colname not in col_uniq_vals_toomany:
@@ -425,12 +449,12 @@ def summarize_big_training_data(fname,
             colmin = col_min[colname] if not np.isinf(col_min[colname]) else None
         summary_data['max'].append(colmax)
         summary_data['min'].append(colmin)
-            
+
         # Count number of unique values
         if colname in col_uniq_vals_toomany:
             n_uniq = '> {}'.format(n_uniq_toomany)
         else:
-            n_uniq = len(col_uniq_vals[colname]) 
+            n_uniq = len(col_uniq_vals[colname])
         summary_data['n_uniq'].append(n_uniq)
 
     # If there are too many y-values, set label_counts to None
@@ -471,3 +495,29 @@ def count_big_file_value_counts(fname, colname):
         for row in reader:
             value_counts[row[colname]] += 1
     return value_counts
+
+
+def biplot(df):
+    '''
+    Create biplot using principle components 1 and 2
+    Play around with the ranges for scaling the plot
+    ax.set_xlim([-1.1, 1.1])
+    ax.set_ylim([-1, 3])
+    '''
+
+    # Fit on 2 components
+    pca = PCA(n_components=2, whiten=True).fit(df)
+
+    # Plot transformed/projected data
+    ax = pd.DataFrame(
+        pca.transform(df),
+        columns=['PC1', 'PC2']
+    ).plot(kind='scatter', x='PC1', y='PC2', figsize=(10, 8), s=0.8)
+
+    # Plot arrows and labels
+    pc1_pc2 = zip(pca.components_[0], pca.components_[1])
+    for i, (pc1, pc2) in enumerate(pc1_pc2):
+        ax.arrow(0, 0, pc1, pc2, width=0.001, fc='orange', ec='orange')
+        ax.annotate(df.columns[i], (pc1, pc2), size=12)
+
+    return ax

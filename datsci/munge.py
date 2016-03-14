@@ -18,12 +18,16 @@ from datetime import datetime
 from sklearn import preprocessing
 from sklearn.preprocessing import Imputer
 
-import dataio, eda
+from . import dataio
+from . import eda
+
 
 def standardize_cols(df, cols=None, ignore_binary=True):
     '''
     Standardize selected columns of a df
-    if ignore_binary is True, then do not standardize columns containing binary values
+
+    If ignore_binary is True, then do not standardize columns
+    containing binary values
     '''
     # If cols is blank, use all columns in the dataframe
     _cols = cols
@@ -65,18 +69,18 @@ def impute_standardize(df, cols=None, impute_strategy='mean', ignore_binary=True
 def match_binary_labels(df, ycolname, ylabs=[0, 1], rseed=None):
     '''
     Given a df, match the number of rows with y-labels=0 with the number of rows with y-labels=1
-    
-    This function should be used when the label counts are so skewed that it's difficult to train a 
+
+    This function should be used when the label counts are so skewed that it's difficult to train a
     classifier.
-    
+
     In order to downsample from the larger group, only complete rows will be randomly selected.
-    If removing incomplete rows in the larger group causes it to be smaller, 
+    If removing incomplete rows in the larger group causes it to be smaller,
     then the difference will be made up by sampling from the removed incomplete rows.
     '''
     # Make sure ylabs contains only two values
     if len(set(ylabs)) != 2:
         raise ValueError('ylabs should contain two unique values: Found: {0}'.format(ylabs))
-    
+
     # Get y-label series
     ycol = df[ycolname]
 
@@ -92,7 +96,7 @@ def match_binary_labels(df, ycolname, ylabs=[0, 1], rseed=None):
                                  class_counts.index[1],
                                  ylabs[0],
                                  ylabs[1]))
-    
+
     # Divide up the data frame into the two class label groups
     _t0 = df[ycol == ylabs[0]]
     _t1 = df[ycol == ylabs[1]]
@@ -202,6 +206,7 @@ def remove_col_big_data(fname_in, fname_out, indices, delimiter=',', progress_in
                 sys.stdout.write('{}\tencountered: {}\n'.format(datetime.now(), t))
             writer.writerow([x for i,x in enumerate(row) if i not in indices])
 
+
 def hash_features(df, columns=[]):
     '''
     Create numerical features for categorical data by feature hashing
@@ -213,7 +218,7 @@ def hash_features(df, columns=[]):
     hashed_df = pd.get_dummies(df[col], prefix=col, prefix_sep='_')
     for col in columns[1:]:
         hashed_df = hashed_df.join(pd.get_dummies(df[col], prefix=col, prefix_sep='_'))
-    
+
     # Attach to non-hashed columns
     non_hashed_cols = []
     columns_set = set(columns)
@@ -228,3 +233,19 @@ def hash_features(df, columns=[]):
     # Otherwise, join the two dfs
     return df[non_hashed_cols].join(hashed_df)
 
+
+def remove_duplicates(df):
+    '''
+    Remove duplicates for data with a lot of a lot of columns
+    Wrote this mainly because the pandas remove_duplicates kept
+    incurring stack overflow error
+    '''
+    cache = set()
+    def is_unique(row):
+        rowstr = row.to_string()
+        if rowstr in cache:
+            return False
+        cache.add(rowstr)
+        return True
+
+    return df[df.apply(is_unique, axis=1)]
