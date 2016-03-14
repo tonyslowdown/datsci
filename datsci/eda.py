@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 '''
 Description     : Module to handle EDA (Exploratory Data Analysis)
 Author          : Jin Kim jjinking(at)gmail(dot)com

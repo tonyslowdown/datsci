@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 '''
 Description     : Utilities for kaggle
 Author          : Jin Kim jjinking(at)gmail(dot)com

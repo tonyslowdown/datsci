@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 '''
 Description     : Module to handle data io
 Author          : Jin Kim jjinking(at)gmail(dot)com

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 '''
 Description     : Module implementing recommender systems
 Author          : Jin Kim jjinking(at)gmail(dot)com
@@ -46,7 +45,7 @@ class CollabFilterFrame(RecommenderFrame):
     Based on the collaborative filtering algorithm presented in
     Programming Collective Intelligence by Toby Segaran
     '''
-    
+
     def similarity(self, u1, u2, method='pearson'):
         '''
         Return similarity(correlation) between two users using various distance functions
@@ -57,7 +56,7 @@ class CollabFilterFrame(RecommenderFrame):
         u1_data = self[self['user'] == u1]
         u2_data = self[self['user'] == u2]
         pair = pd.merge(u1_data, u2_data, how='inner', on='item')[['rating_x','rating_y']]
-        
+
         # If there are no overlapping items between two users, return 0
         if pair.shape[0] == 0:
             return 0.0
