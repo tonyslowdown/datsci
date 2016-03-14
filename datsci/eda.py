@@ -91,25 +91,17 @@ def find_null_cols(df, frac=.8):
     return list(null_fracs[null_fracs >= frac].index)
 
 
-def find_binary_cols(df):
+def find_n_nary_cols(df, n=2):
     '''
-    Given a dataframe, return the names of columns containing
-    only binary values {0,1}
+    Given a dataframe, return the names of columns containing only
+    n unique values. For example, binary columns contain n=2 unique values
     '''
-    binary_cols = []
-    for cname in df:
-        col = df[cname]
-        unique_vals = col[~col.isnull()].value_counts().index
-        unique_vals_len = len(unique_vals)
-        # If a column contains more than 2 unique values, then it's not binary
-        if unique_vals_len > 2:
-            continue
-        # |{0,1} ^ {0|1}| == 1
-        # |{0,1} ^ {0,1}| == 2
-        unique_vals_set = set(unique_vals)
-        if len(unique_vals_set.intersection({0, 1})) == unique_vals_len:
-            binary_cols.append(cname)
-    return binary_cols
+    return_cols = []
+    for c in df:
+        col = df[c]
+        if col[~col.isnull()].value_counts().size == n:
+            return_cols.append(c)
+    return return_cols
 
 
 def find_extreme_cols(df, T=1000):
