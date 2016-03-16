@@ -57,10 +57,14 @@ def train_predict(descriptions_clfs,
 
 
 def fine_tune_params(clf, X_train, y_train, X_test, y_test, param_grid,
-                     n_iter=5, n_cv=5, scoring=accuracy_score, n_jobs=2):
+                     n_runs=5, n_cv=5, scoring=accuracy_score, n_jobs=2):
+    '''
+    Fine tune model using multiple runs of grid search, since grid search
+    shuffles the data per iteration
+    '''
     best_score = None
     best_model = None
-    for i in range(n_iter):
+    for i in range(n_runs):
         if i < 3 or i % 10 == 0:
             print("iteration {}".format(i))
             starttime = time.time()
