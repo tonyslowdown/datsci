@@ -3,7 +3,7 @@ Description     : Module to handle EDA (Exploratory Data Analysis)
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2016.03.14
+Last Modified   : 2016.03.16
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -29,6 +29,15 @@ from prettytable import PrettyTable
 from sklearn.decomposition import PCA
 
 from datsci import dataio
+
+
+def get_dummy():
+    '''
+    Return a simple dataframe for testing something
+    '''
+    return pd.DataFrame({'a': [1, 2, 3],
+                         'b': [4, 5, 6],
+                         'c': ['d', 'e', 'f']})
 
 
 def pprint(df):
@@ -73,12 +82,16 @@ def df_equal(df1, df2, decimals=None):
     return True
 
 
-def find_const_cols(df):
+def find_const_cols(df, exclude_nan=True):
     '''
     Find constant (uninformative) columns
     i.e. columns with all the same values (excluding nulls)
     '''
-    counts = df.apply(lambda col: col[~col.isnull()].nunique())
+    def count_unique(col):
+        if exclude_nan:
+            col = col[~col.isnull()]
+        return col.nunique()
+    counts = df.apply(count_unique)
     return list(counts[counts == 1].index)
 
 
@@ -86,8 +99,9 @@ def find_null_cols(df, frac=.8):
     '''
     Find columns containing >= frac null values
     '''
-    f = lambda col: col[col.isnull()].size / float(df.shape[0])
-    null_fracs = df.apply(f)
+    def compute_frac_null(col):
+        return col[col.isnull()].size / float(df.shape[0])
+    null_fracs = df.apply(compute_frac_null)
     return list(null_fracs[null_fracs >= frac].index)
 
 
@@ -101,7 +115,7 @@ def find_n_nary_cols(df, n=2, exclude_nan=True):
         col = df[c]
         if exclude_nan:
             col = col[~col.isnull()]
-        if col.unique().size == n:
+        if col.nunique() == n:
             return_cols.append(c)
     return return_cols
 
@@ -115,7 +129,7 @@ def get_hist_unique_col_values(df, exclude_nan=True):
         col = df[c]
         if exclude_nan:
             col = col[~col.isnull()]
-        num_unique_vals.append(col.unique().size)
+        num_unique_vals.append(col.nunique())
     return pd.Series(num_unique_vals).value_counts().sort_index()
 
 
@@ -128,6 +142,24 @@ def get_hist_unique_col_values_many(dfs, columns, exclude_nan=True):
         results[columns[i]] = get_hist_unique_col_values(
             df, exclude_nan=exclude_nan)
     return pd.DataFrame(results)[columns]
+
+
+def find_categorical_columns(df_train, df_test):
+    '''
+    Find columns that are categorical by matching unique values between
+    the train and test data
+    Return list of tuples, each tuple containing column name and counts
+    i.e. [('column1', 1), ('column2', 2), ...]
+    '''
+    categorical_cols = []
+    for c in df_train:
+        col_train = df_train[c]
+        col_train_uniq = col_train[~col_train.isnull()].unique()
+        col_test = df_test[c]
+        col_test_uniq = col_test[~col_test.isnull()].unique()
+        if np.array_equal(col_train_uniq, col_test_uniq):
+            categorical_cols.append((c, col_train_uniq.size))
+    return sorted(categorical_cols, key=lambda p: p[1])
 
 
 def find_extreme_cols(df, T=10000):
