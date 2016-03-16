@@ -214,9 +214,10 @@ def hash_features(df, columns=[]):
     if not columns:
         columns = df.columns
     col = columns[0]
-    hashed_df = pd.get_dummies(df[col], prefix=col, prefix_sep='_')
+    hashed_df = pd.get_dummies(df[col], prefix='onehot_' + col, prefix_sep='_')
     for col in columns[1:]:
-        hashed_df = hashed_df.join(pd.get_dummies(df[col], prefix=col, prefix_sep='_'))
+        hashed_df = hashed_df.join(
+            pd.get_dummies(df[col], prefix='onehot_' + col, prefix_sep='_'))
 
     # Attach to non-hashed columns
     non_hashed_cols = []
