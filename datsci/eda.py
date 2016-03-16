@@ -157,7 +157,7 @@ def find_categorical_columns(df_train, df_test):
         col_train_uniq = col_train[~col_train.isnull()].unique()
         col_test = df_test[c]
         col_test_uniq = col_test[~col_test.isnull()].unique()
-        if np.array_equal(col_train_uniq, col_test_uniq):
+        if set(col_train_uniq) == set(col_test_uniq):
             categorical_cols.append((c, col_train_uniq.size))
     return sorted(categorical_cols, key=lambda p: p[1])
 
