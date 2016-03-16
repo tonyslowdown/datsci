@@ -3,12 +3,13 @@ Description     : Module to run machine learning algorithms
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2016.03.14
-Last Modified   : 2016.03.14
+Last Modified   : 2016.03.16
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
 import pandas as pd
 import time
+from sklearn.grid_search import GridSearchCV as GSCV
 from sklearn.metrics import accuracy_score
 
 
@@ -53,3 +54,24 @@ def train_predict(descriptions_clfs,
     return pd.DataFrame(results)[[
         'description', 'score_train', 'score_test',
         'time_train', 'time_predict_train', 'time_predict_test']]
+
+
+def fine_tune_params(clf, X_train, y_train, X_test, y_test, param_grid,
+                     n_iter=5, n_cv=5, scoring=accuracy_score, n_jobs=2):
+    best_score = None
+    best_model = None
+    for i in range(n_iter):
+        if i < 3 or i % 10 == 0:
+            print("iteration {}".format(i))
+            starttime = time.time()
+        gs_clf = GSCV(clf, param_grid, cv=n_cv, n_jobs=n_jobs)
+        gs_clf.fit(X_train, y_train)
+        _score = scoring(y_test, gs_clf.predict(X_test))
+        if best_score is None or best_score < _score:
+            best_score = _score
+            best_model = gs_clf.best_estimator_
+        if i < 3 or i % 10 == 0:
+            runtime = time.time() - starttime
+            print("Each iteration time(secs): {:.3f}".format(runtime))
+
+    return best_score, best_model
