@@ -91,7 +91,7 @@ def find_null_cols(df, frac=.8):
     return list(null_fracs[null_fracs >= frac].index)
 
 
-def find_n_nary_cols(df, n=2):
+def find_n_nary_cols(df, n=2, exclude_nan=True):
     '''
     Given a dataframe, return the names of columns containing only
     n unique values. For example, binary columns contain n=2 unique values
@@ -99,12 +99,38 @@ def find_n_nary_cols(df, n=2):
     return_cols = []
     for c in df:
         col = df[c]
-        if col[~col.isnull()].value_counts().size == n:
+        if exclude_nan:
+            col = col[~col.isnull()]
+        if col.unique().size == n:
             return_cols.append(c)
     return return_cols
 
 
-def find_extreme_cols(df, T=1000):
+def get_hist_unique_col_values(df, exclude_nan=True):
+    '''
+    Get histogram of the number of unique values per column
+    '''
+    num_unique_vals = []
+    for c in df:
+        col = df[c]
+        if exclude_nan:
+            col = col[~col.isnull()]
+        num_unique_vals.append(col.unique().size)
+    return pd.Series(num_unique_vals).value_counts().sort_index()
+
+
+def get_hist_unique_col_values_many(dfs, columns, exclude_nan=True):
+    '''
+    Return the results of get_hist_unique_col_values on multiple DataFrames
+    '''
+    results = {}
+    for i, df in enumerate(dfs):
+        results[columns[i]] = get_hist_unique_col_values(
+            df, exclude_nan=exclude_nan)
+    return pd.DataFrame(results)[columns]
+
+
+def find_extreme_cols(df, T=10000):
     '''
     Return a list of column names that have extreme values that might
     be in place of NaNs, i.e. -9999999
@@ -121,7 +147,7 @@ def find_extreme_cols(df, T=1000):
         minval = abs(d['min'])
         maxval = abs(d['max'])
         thresh = abs(d['75%'] * T)
-        if minval >= T or maxval >= T:
+        if minval >= thresh or maxval >= thresh:
             possible_cols.append(c)
     return possible_cols
 
