@@ -68,7 +68,8 @@ def fine_tune_params(clf, X_train, y_train, X_test, y_test, param_grid,
         if i < 3 or i % 10 == 0:
             print("iteration {}".format(i))
             starttime = time.time()
-        gs_clf = GSCV(clf, param_grid, cv=n_cv, n_jobs=n_jobs)
+        gs_clf = GSCV(
+            clf, param_grid, cv=n_cv, n_jobs=n_jobs, scoring=scoring)
         gs_clf.fit(X_train, y_train)
         _score = scoring(y_test, gs_clf.predict(X_test))
         if best_score is None or best_score < _score:
