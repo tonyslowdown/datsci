@@ -3,7 +3,7 @@ Description     : Module to run machine learning algorithms
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2016.03.14
-Last Modified   : 2016.03.16
+Last Modified   : 2016.03.17
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -11,12 +11,13 @@ import pandas as pd
 import time
 from sklearn.grid_search import GridSearchCV as GSCV
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import make_scorer
 
 
 def train_predict(descriptions_clfs,
                   X_train, y_train,
                   X_test, y_test,
-                  scoring=accuracy_score):
+                  scorer=accuracy_score):
     '''
     Function for running preliminary analyses
 
@@ -39,14 +40,14 @@ def train_predict(descriptions_clfs,
         start = time.time()
         y_hat = clf.predict(X_train)
         end = time.time()
-        result['score_train'] = scoring(y_train.values, y_hat)
+        result['score_train'] = scorer(y_train.values, y_hat)
         result['time_predict_train'] = end - start
 
         # Predict test
         start = time.time()
         y_hat = clf.predict(X_test)
         end = time.time()
-        result['score_test'] = scoring(y_test.values, y_hat)
+        result['score_test'] = scorer(y_test.values, y_hat)
         result['time_predict_test'] = end - start
 
         results.append(result)
@@ -57,7 +58,7 @@ def train_predict(descriptions_clfs,
 
 
 def fine_tune_params(clf, X_train, y_train, X_test, y_test, param_grid,
-                     n_runs=5, n_cv=5, scoring=accuracy_score, n_jobs=2):
+                     n_runs=5, n_cv=5, scorer=accuracy_score, n_jobs=2):
     '''
     Fine tune model using multiple runs of grid search, since grid search
     shuffles the data per iteration
@@ -68,10 +69,10 @@ def fine_tune_params(clf, X_train, y_train, X_test, y_test, param_grid,
         if i < 3 or i % 10 == 0:
             print("iteration {}".format(i))
             starttime = time.time()
-        gs_clf = GSCV(
-            clf, param_grid, cv=n_cv, n_jobs=n_jobs, scoring=scoring)
+        gs_clf = GSCV(clf, param_grid, cv=n_cv, n_jobs=n_jobs,
+                      scoring=make_scorer(scorer))
         gs_clf.fit(X_train, y_train)
-        _score = scoring(y_test, gs_clf.predict(X_test))
+        _score = scorer(y_test, gs_clf.predict(X_test))
         if best_score is None or best_score < _score:
             best_score = _score
             best_model = gs_clf.best_estimator_
