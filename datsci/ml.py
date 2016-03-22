@@ -3,7 +3,7 @@ Description     : Module to run machine learning algorithms
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2016.03.14
-Last Modified   : 2016.03.17
+Last Modified   : 2016.03.22
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -12,6 +12,7 @@ import time
 from sklearn.grid_search import GridSearchCV as GSCV
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import make_scorer
+from sklearn.metrics import roc_curve, auc
 
 
 def train_predict(descriptions_clfs,
@@ -81,3 +82,26 @@ def fine_tune_params(clf, X_train, y_train, X_test, y_test, param_grid,
             print("Each iteration time(secs): {:.3f}".format(runtime))
 
     return best_score, best_model
+
+
+def plot_roc(y_true, y_hat):
+    '''
+    Plot ROC curve
+    '''
+    tpr_label = "True Positive Rate"
+    fpr_label = "False Positive Rate"
+    fpr, tpr, thresholds = roc_curve(y_true, y_hat)
+    _area = auc(fpr, tpr)
+    title = 'Receiver Operating Characteristic (AUROC={})'.format(_area)
+    ax = pd.DataFrame({
+        fpr_label: fpr,
+        tpr_label: tpr
+    }).set_index(fpr_label).plot(
+        kind='line',
+        title=title,
+        xlim=(0.0, 1.0),
+        ylim=(0.0, 1.0),
+        legend=False
+    )
+    ax.set_ylabel(tpr_label)
+    return ax
