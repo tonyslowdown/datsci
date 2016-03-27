@@ -99,7 +99,7 @@ class TestMunge(unittest.TestCase):
                            [0, 1, 20.0, 1, 0]],
                           columns=['a','b','c','d','e'])
         self.assertTrue((munge.match_binary_labels(df, 'e').values == df.values).all())
-        
+
         # Test sampling from the bigger group to match the smaller group
         df = pd.DataFrame([[1, 0, 10.0,-1, 1],
                            [0, 1, 20.0, 1, 1],
@@ -207,7 +207,7 @@ class TestMunge(unittest.TestCase):
 
         # Check that error is raised for non-string values
         self.assertRaises(ValueError, munge.scale_down, 3.4)
-        
+
         # Check that a string with more than one decimal raises error
         self.assertRaises(ValueError, munge.scale_down, '1.2.3')
 
@@ -217,7 +217,7 @@ class TestMunge(unittest.TestCase):
         self.assertEqual(munge.scale_down('.001'), 0.000000001)
         self.assertEqual(munge.scale_down('123'), 0.000123)
         self.assertEqual(munge.scale_down('1'), 0.000001)
-        
+
         # Change number of decimals
         self.assertEqual(munge.scale_down('1', mvleft=4), 0.0001)
         self.assertEqual(munge.scale_down('1', mvleft=8), 0.00000001)
@@ -243,10 +243,10 @@ class TestMunge(unittest.TestCase):
         '''
         sample_file_csv = os.path.join(self.curdir, 'res', 'sample2.csv')
         sample_file_csv_nonull = os.path.join(self.curdir, 'res', 'sample2.nonull.csv')
-        
+
         # Remove rows containing empty values
         munge.remove_null_big_data(sample_file_csv, sample_file_csv_nonull)
-        
+
         df = pd.read_csv(sample_file_csv_nonull)
         self.assertEqual(df.shape[0], 5)
         self.assertEqual(list(df['a'].values), [11,1111,111111,1111111,111111111])
@@ -257,7 +257,7 @@ class TestMunge(unittest.TestCase):
         '''
         sample_file = os.path.join(self.curdir, 'res', 'sample1.txt')
         sample_file_delcol = os.path.join(self.curdir, 'res', 'sample1.delcol.txt')
-        
+
         def test_removing_idx(idx):
             munge.remove_col_big_data(sample_file, sample_file_delcol, [idx], delimiter='\t')
             data1 = []
@@ -271,10 +271,10 @@ class TestMunge(unittest.TestCase):
                 for line in f:
                     data2.append(line.strip().split())
             self.assertEqual(data1, data2)
-        
+
         for col in range(3):
             test_removing_idx(col)
-        
+
         # Delete file created
         os.remove(sample_file_delcol)
 
@@ -293,28 +293,28 @@ class TestMunge(unittest.TestCase):
                 data2.append(line.strip().split())
         self.assertEqual(data1, data2)
         os.remove(sample_file_delcol)
-            
-    def test_hash_features(self):
+
+    def test_one_hot_encode_features(self):
         '''
-        Test feature hashing
+        Test one-hot encoding features
         '''
         df = pd.DataFrame([['aa','bb',None],
                            ['aaa','bbb','ccc']],
                           columns=['a','b','c'])
-        hashed_df = munge.hash_features(df)
-        self.assertEqual(hashed_df.shape[0], 2)
-        self.assertEqual(hashed_df.shape[1], 5)
-        self.assertEqual(hashed_df.ix[0, 'a_aa'], 1)
-        self.assertEqual(hashed_df.ix[1, 'b_bb'], 0)
-        self.assertEqual(hashed_df.ix[1, 'c_ccc'], 1)
+        ohe_df = munge.one_hot_encode_features(df)
+        self.assertEqual(ohe_df.shape[0], 2)
+        self.assertEqual(ohe_df.shape[1], 5)
+        self.assertEqual(ohe_df.ix[0, 'a_aa'], 1)
+        self.assertEqual(ohe_df.ix[1, 'b_bb'], 0)
+        self.assertEqual(ohe_df.ix[1, 'c_ccc'], 1)
 
-        hashed_df = munge.hash_features(df, ['a','c'])
-        self.assertEqual(hashed_df.shape[0], 2)
-        self.assertEqual(hashed_df.shape[1], 4)
-        self.assertTrue('b' in hashed_df.columns)
-        self.assertEqual(hashed_df.ix[1, 'a_aa'], 0)
-        self.assertEqual(hashed_df.ix[1, 'a_aaa'], 1)
-        self.assertEqual(hashed_df.ix[0, 'c_ccc'], 0)
+        ohe_df = munge.one_hot_encode_features(df, ['a', 'c'])
+        self.assertEqual(ohe_df.shape[0], 2)
+        self.assertEqual(ohe_df.shape[1], 4)
+        self.assertTrue('b' in ohe_df.columns)
+        self.assertEqual(ohe_df.ix[1, 'a_aa'], 0)
+        self.assertEqual(ohe_df.ix[1, 'a_aaa'], 1)
+        self.assertEqual(ohe_df.ix[0, 'c_ccc'], 0)
 
 
 if __name__ == '__main__':

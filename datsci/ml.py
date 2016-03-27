@@ -59,7 +59,7 @@ def train_predict(descriptions_clfs,
 
 
 def fine_tune_params(clf, X_train, y_train, X_test, y_test, param_grid,
-                     n_runs=5, n_cv=5, scorer=accuracy_score, n_jobs=2):
+                     n_runs=5, n_cv=5, scorer=accuracy_score, n_jobs=2, gscv_kwargs={}):
     '''
     Fine tune model using multiple runs of grid search, since grid search
     shuffles the data per iteration
@@ -71,7 +71,7 @@ def fine_tune_params(clf, X_train, y_train, X_test, y_test, param_grid,
             print("iteration {}".format(i))
             starttime = time.time()
         gs_clf = GSCV(clf, param_grid, cv=n_cv, n_jobs=n_jobs,
-                      scoring=make_scorer(scorer))
+                      scoring=make_scorer(scorer), **gscv_kwargs)
         gs_clf.fit(X_train, y_train)
         _score = scorer(y_test, gs_clf.predict(X_test))
         if best_score is None or best_score < _score:

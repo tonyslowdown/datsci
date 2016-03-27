@@ -3,7 +3,7 @@ Description     : Module to handle EDA (Exploratory Data Analysis)
 Author          : Jin Kim jjinking(at)gmail(dot)com
 License         : MIT
 Creation date   : 2014.02.13
-Last Modified   : 2016.03.16
+Last Modified   : 2016.03.27
 Modified By     : Jin Kim jjinking(at)gmail(dot)com
 '''
 
@@ -50,36 +50,14 @@ def pprint(df):
     print(table)
 
 
-def df_equal(df1, df2, decimals=None):
+def df_isclose(df1, df2, tol=1e-8):
     '''
-    TODO: Rewrite this using columnar comparisons, using np.allclose
-    Compare the values of two pandas DataFrame objects element by element,
-    and if every single element is equal, return True
-
-    Parameter decimals determines the number of decimal places to round decimal
-    values before comparing
+    Determine if the values in 2 dataframes are very close in values,
+    essentially equal with tolerance tol
     '''
-    # First, compare the sizes
-    if df1.shape != df2.shape:
-        return False
-
-    # Compare values, and round decimals
-    n_elements = np.multiply(*df1.shape)
-    l1 = np.squeeze(df1.values.reshape(n_elements, 1))
-    l2 = np.squeeze(df2.values.reshape(n_elements, 1))
-    if decimals is not None and isinstance(decimals, int):
-        l1 = np.round(l1, decimals=decimals)
-        l2 = np.round(l2, decimals=decimals)
-    for t in range(len(l1)):
-        a, b = l1[t], l2[t]
-        # If both are np.nan, skip
-        if not isinstance(a, str) and not isinstance(b, str):
-            if np.isnan(a) and np.isnan(b):
-                continue
-        # Regular comparison
-        if a != b:
-            return False
-    return True
+    return np.isclose(
+        df1.values, df2.values, atol=tol
+    ).sum() == (df1.shape[0] * df1.shape[1])
 
 
 def find_const_cols(df, exclude_nan=True):

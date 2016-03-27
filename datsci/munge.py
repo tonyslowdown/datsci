@@ -206,32 +206,32 @@ def remove_col_big_data(fname_in, fname_out, indices, delimiter=',', progress_in
             writer.writerow([x for i,x in enumerate(row) if i not in indices])
 
 
-def hash_features(df, columns=[]):
+def one_hot_encode_features(df, columns=[]):
     '''
-    Create numerical features for categorical data by feature hashing
+    Create one-hot encoded features and remove original
     '''
-    # Determine which columns to hash
+    # Determine which columns to one-hot encode
     if not columns:
         columns = df.columns
     col = columns[0]
-    hashed_df = pd.get_dummies(df[col], prefix='onehot_' + col, prefix_sep='_')
+    ohe_df = pd.get_dummies(df[col], prefix='onehot_' + col, prefix_sep='_')
     for col in columns[1:]:
-        hashed_df = hashed_df.join(
+        ohe_df = ohe_df.join(
             pd.get_dummies(df[col], prefix='onehot_' + col, prefix_sep='_'))
 
-    # Attach to non-hashed columns
-    non_hashed_cols = []
+    # Attach to non-one-hot encoded columns
+    non_ohe_cols = []
     columns_set = set(columns)
     for c in df.columns:
         if c not in columns_set:
-            non_hashed_cols.append(c)
+            non_ohe_cols.append(c)
 
-    # If all columns are hashed, return the hashed df
-    if not non_hashed_cols:
-        return hashed_df
+    # If all columns are one-hot encoded, return them
+    if not non_ohe_cols:
+        return ohe_df
 
     # Otherwise, join the two dfs
-    return df[non_hashed_cols].join(hashed_df)
+    return df[non_ohe_cols].join(ohe_df)
 
 
 def remove_duplicates(df):
