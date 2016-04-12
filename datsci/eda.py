@@ -26,6 +26,11 @@ from contextlib import closing
 from datetime import datetime
 from matplotlib import style
 style.use('ggplot')
+import seaborn as sns
+sns.set_style("whitegrid")
+sns.set_context(rc={
+           "figure.figsize": (16, 10),
+           "axes.titlesize": 14})
 from prettytable import PrettyTable
 from sklearn.decomposition import PCA
 
@@ -549,3 +554,31 @@ def biplot(df):
         ax.annotate(df.columns[i], (pc1, pc2), size=12)
 
     return ax
+
+
+def corr_heat(df):
+    """Plot heat map of the correlation matrix of the dataframe
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Contains columnar data that will be used to compute
+        the correlation matrix
+
+    Returns
+    -------
+    corr_matrix : pandas.DataFrame
+        df.corr()
+
+    ax : matplotlib.axes._subplots.AxesSubplot
+        Useful for manipulating plot
+    """
+    corr = df.corr()
+
+    # Set up the matplotlib figure
+    f, ax = plt.subplots(figsize=(12, 9))
+
+    # Draw the heatmap using seaborn
+    ax = sns.heatmap(corr, square=True, cmap='seismic')
+
+    return corr, ax
