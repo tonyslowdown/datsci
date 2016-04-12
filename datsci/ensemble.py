@@ -26,11 +26,12 @@ def weighted_avg(y_hats, weights=[]):
 
     Returns
     -------
-    wavg : numpy.ndarray containing weighted averages
+    wavg : numpy.ndarray
+        Weighted averages
     """
     df_y_hats = pd.DataFrame(y_hats).T
     if not weights:
-        return df_y_hats.mean(axis=1)
+        return df_y_hats.mean(axis=1).values
 
     return df_y_hats.apply(
         lambda row: np.dot(row.values, weights), axis=1).values / sum(weights)
