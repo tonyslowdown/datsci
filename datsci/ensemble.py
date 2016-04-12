@@ -33,4 +33,4 @@ def weighted_avg(y_hats, weights=[]):
         return df_y_hats.mean(axis=1)
 
     return df_y_hats.apply(
-        lambda row: np.dot(row.values, weights), axis=1).values
+        lambda row: np.dot(row.values, weights), axis=1).values / sum(weights)

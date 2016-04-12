@@ -30,7 +30,7 @@ class TestEnsemble(unittest.TestCase):
         # Check weighted mean
         self.assertTrue(np.array_equal(
             ensemble.weighted_avg([y1, y2, y3], weights=[1, 1, 2]),
-            np.array([19, 23, 27])
+            np.array([19/4, 23/4, 27/4])
         ))
 
 
