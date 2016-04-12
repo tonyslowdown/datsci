@@ -1,14 +1,16 @@
-#!/usr/bin/env python
-'''
-Description     : Unit test for eda.py
-Author          : Jin Kim jjinking(at)gmail(dot)com
-License         : MIT
-Creation date   : 2014.02.13
-Last Modified   : 2015.01.30
-Modified By     : Jin Kim jjinking(at)gmail(dot)com
-'''
+"""Unit test for eda.py
 
-import os,sys
+"""
+
+# Author          : Jin Kim jjinking(at)gmail(dot)com
+# Creation date   : 2014.02.13
+# Last Modified   : 2016.04.12
+#
+# License         : MIT
+
+import os
+import sys
+
 # Add project root to PYTHONPATH
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), os.path.pardir))
 import numpy as np
@@ -58,7 +60,7 @@ class TestEda(unittest.TestCase):
         df2 = pd.DataFrame([['c',2],
                             [3,'c']])
         self.assertFalse(eda.df_equal(df1, df2))
-        
+
         # Test rounding
         df1 = pd.DataFrame([[1.1234, 2.1234],
                             [3.1234, 4.1234]])
@@ -124,7 +126,7 @@ class TestEda(unittest.TestCase):
                            [1, 22, None, None, 1.0, 0]],
                           columns=['a','b','c','d','e','f'])
         self.assertEqual(eda.find_binary_cols(df), ['a','c','d','e'])
-        
+
     def test_get_feature_clusters(self):
         '''
         Test finding clusters of correlated columns
@@ -178,7 +180,7 @@ class TestEda(unittest.TestCase):
         self.assertEqual(set(cols_ranked[:3]), set(['d','c','a']))
         # Check the top feature is the same as the y
         self.assertEqual(cols_ranked[0], 'd')
-        
+
     def test_generate_important_features(self):
         '''
         Test generating ordered column names uniquely from their grouped clusters
@@ -349,7 +351,7 @@ class TestEda(unittest.TestCase):
                                                      y_name='z',
                                                      summary_pkl=None)
         self.assertFalse(os.path.exists(summary_pkl_file))
-        
+
     def test_summarize_big_training_data(self):
         '''
         Test large data file summarization
@@ -418,10 +420,10 @@ class TestEda(unittest.TestCase):
         self.assertEqual(summary_c['n_null'].values[0], 3)
         self.assertEqual(summary_c['perc_null'].values[0], .3)
         self.assertEqual(summary_c['n_uniq'].values[0], 4)
-        
+
         # Check that summary pkl file exists
         self.assertTrue(os.path.exists(summary_pkl_file))
-        
+
         # Check saved values can be loaded and is correct
         summary2, n_rows2, label_counts2 = eda.load_summary_data(summary_pkl_file)
         self.assertTrue(eda.df_equal(summary, summary2))
