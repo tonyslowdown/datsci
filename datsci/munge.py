@@ -1,11 +1,12 @@
-'''
-Description     : Module to handle data munging/wrangling
-Author          : Jin Kim jjinking(at)gmail(dot)com
-License         : MIT
-Creation date   : 2014.02.13
-Last Modified   : 2015.01.30
-Modified By     : Jin Kim jjinking(at)gmail(dot)com
-'''
+"""Module to handle data munging/wrangling
+
+"""
+
+# Author          : Jin Kim jjinking(at)gmail(dot)com
+# Creation date   : 2014.02.13
+# Last Modified   : 2016.04.12
+#
+# License         : MIT
 
 import csv
 import numpy as np

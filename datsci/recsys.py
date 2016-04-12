@@ -1,17 +1,19 @@
-'''
-Description     : Module implementing recommender systems
-Author          : Jin Kim jjinking(at)gmail(dot)com
-License         : MIT
-Creation date   : 2014.03.25
-Last Modified   : 2014.03.27
-Modified By     : Jin Kim jjinking(at)gmail(dot)com
-'''
+"""Recommender systems
+
+"""
+
+# Author          : Jin Kim jjinking(at)gmail(dot)com
+# Creation date   : 2014.03.25
+# Last Modified   : 2014.03.27
+#
+# License         : MIT
 
 import numpy as np
 import pandas as pd
 import scipy as sp
 import scipy.spatial
 from collections import defaultdict
+
 
 class RecommenderFrame(pd.DataFrame):
     '''

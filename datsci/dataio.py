@@ -1,11 +1,12 @@
-'''
-Description     : Module to handle data io
-Author          : Jin Kim jjinking(at)gmail(dot)com
-License         : MIT
-Creation date   : 2013.09.23
-Last Modified   : 2015.12.31
-Modified By     : Jin Kim jjinking(at)gmail(dot)com
-'''
+"""Handle data io
+
+"""
+
+# Author          : Jin Kim jjinking(at)gmail(dot)com
+# Creation date   : 2013.09.23
+# Last Modified   : 2016.04.12
+#
+# License         : MIT
 
 import csv
 import os
@@ -16,7 +17,7 @@ from datetime import datetime
 
 
 def fopen(fname, mode='r'):
-    '''
+    """
     Given fname, a full file path as a string, return correct file handle
     based on extension
     File mode is either 'r' or 'w'
@@ -24,7 +25,7 @@ def fopen(fname, mode='r'):
     an archive
     Can handle the following: txt, csv, tsv, zip, gz, tar.gz, tar.bz2
     Usages may be different for various compression libraries
-    '''
+    """
     import gzip
     import tarfile
     import zipfile

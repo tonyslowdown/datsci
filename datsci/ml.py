@@ -1,11 +1,13 @@
-'''
-Description     : Module to run machine learning algorithms
-Author          : Jin Kim jjinking(at)gmail(dot)com
-License         : MIT
-Creation date   : 2016.03.14
-Last Modified   : 2016.03.22
-Modified By     : Jin Kim jjinking(at)gmail(dot)com
-'''
+"""Tools for running machine learning algorithms
+
+"""
+
+# Author          : Jin Kim jjinking(at)gmail(dot)com
+# Creation date   : 2016.03.14
+# Last Modified   : 2016.04.12
+#
+# License         : MIT
+
 
 import pandas as pd
 import time
@@ -19,13 +21,30 @@ def train_predict(descriptions_clfs,
                   X_train, y_train,
                   X_test, y_test,
                   scorer=accuracy_score):
-    '''
-    Function for running preliminary analyses
+    """Run preliminary performance analyses of multiple machine learning models.
 
-    descriptions_clfs is a list of 2-tuples, each containing a
-    description text and a classifier object
-    i.e. [('Classifier1 info', clf1), ('Classifier2 info', clf2), ...]
-    '''
+    Parameters
+    ----------
+    descriptions_clfs : Iterable of 2-tuples (str, object)
+        Each 2-tuple element contains descriptive text and a classifier object.
+        i.e. [('Classifier1 info', clf1), ('Classifier2 info', clf2), ...]
+
+    X_train : pandas.DataFrame
+        Training features data
+
+    y_train : pandas.Series
+        Training target data
+
+    X_test, y_test : same as X_train, y_train, but used for testing
+
+    scorer : function or method
+        Measures performance of a model, takes 2 parameters, y_true and y_hat
+
+    Returns
+    -------
+    df_summary : pandas.DataFrame
+        Performance summary of all the models
+    """
     results = []
     for description, clf in descriptions_clfs:
 
@@ -59,11 +78,50 @@ def train_predict(descriptions_clfs,
 
 
 def fine_tune_params(clf, X_train, y_train, X_test, y_test, param_grid,
-                     n_runs=5, n_cv=5, scorer=accuracy_score, n_jobs=2, gscv_kwargs={}):
-    '''
-    Fine tune model using multiple runs of grid search, since grid search
-    shuffles the data per iteration
-    '''
+                     n_runs=5, n_cv=5, scorer=accuracy_score, n_jobs=2,
+                     gscv_kwargs={}):
+    """Fine tune model using multiple runs of sklearn's GridSearchCV, since it
+    shuffles the data per run.
+
+    Parameters
+    ----------
+    clf: object
+        Machine learning model
+
+    X_train : pandas.DataFrame
+        Training features data
+
+    y_train : pandas.Series
+        Training target data
+
+    X_test, y_test : same as X_train, y_train, but used for testing
+
+    param_grid : dictionary
+        Parameter values to use in GridSearchCV
+
+    n_runs : int
+        Number of times to run GridSearchCV
+
+    n_cv : int
+        GridSearchCV's `cv` parameter
+
+    scorer : function or method
+        Measures performance of a model, takes 2 parameters, y_true and y_hat
+
+    n_jobs : int
+        GridSearchCV's `n_jobs` parameter
+
+    gscv_kwargs : dict
+        Keyword arguments to be passed into GridSearchCV
+
+    Returns
+    -------
+    best_score: float
+        Best(max) score returned by scorer
+
+    best_model: object
+        Model object corresponding to best_score
+    """
     best_score = None
     best_model = None
     for i in range(n_runs):
@@ -85,9 +143,8 @@ def fine_tune_params(clf, X_train, y_train, X_test, y_test, param_grid,
 
 
 def plot_roc(y_true, y_hat):
-    '''
-    Plot ROC curve
-    '''
+    """Plot ROC curve
+    """
     tpr_label = "True Positive Rate"
     fpr_label = "False Positive Rate"
     fpr, tpr, thresholds = roc_curve(y_true, y_hat)

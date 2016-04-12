@@ -1,4 +1,4 @@
-"""Module to help ensembling model predictions
+"""Ensembling model predictions
 
 """
 
@@ -13,11 +13,11 @@ import pandas as pd
 
 
 def weighted_avg(y_hats, weights=[]):
-    """Computes weighted average of predicted values
+    """Computes weighted average of predicted values.
 
     Parameters
     ----------
-    y_hats : Iterable containing numpy.ndarray
+    y_hats : Iterable of numpy.ndarray's
         Machine learning model-predicted values.
 
     weights : Iterable
