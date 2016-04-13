@@ -4,13 +4,15 @@
 
 # Author          : Jin Kim jjinking(at)gmail(dot)com
 # Creation date   : 2016.03.14
-# Last Modified   : 2016.04.12
+# Last Modified   : 2016.04.13
 #
 # License         : MIT
 
 
+import numpy as np
 import pandas as pd
 import time
+import xgboost as xgb
 from sklearn.grid_search import GridSearchCV as GSCV
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import make_scorer
@@ -162,3 +164,115 @@ def plot_roc(y_true, y_hat):
     )
     ax.set_ylabel(tpr_label)
     return ax
+
+
+def cv_fit_xgb_model(model,
+                     X_train, y_train,
+                     X_test, y_test,
+                     cv_nfold=5,
+                     early_stopping_rounds=50,
+                     missing=np.nan,
+                     scorer=accuracy_score,
+                     verbose=True):
+    """Fit xgb model with best n_estimators using xgb builtin cv
+
+    Parameters
+    ----------
+    model : xgb model object
+
+    X_train : pandas.DataFrame
+        Training features data
+
+    y_train : pandas.Series
+        Training target data
+
+    X_test, y_test : same as X_train, y_train, but used for testing
+
+    cv_nfold : int
+        Number of folds in CV
+
+    early_stopping_rounds : int
+        Activates early stopping. CV error needs to decrease at least
+        every <early_stopping_rounds> round(s) to continue.
+        Last entry in evaluation history is the one from best iteration.
+
+    missing : float
+        Value in the data which needs to be present as a missing value.
+
+    scorer : function or method
+        Measures performance of a model, takes 2 parameters, y_true and y_hat
+
+    verbose : bool
+        Print scoring summary to stdout
+
+    Returns
+    -------
+    best_n_estimators : int
+        Number of optimal estimators, or boosting rounds
+
+    train_score : float
+        Performance of the best model on training set
+
+    test_score : float
+        Performance of the best model on test set
+
+    Example
+    -------
+
+    model = xgb.XGBRegressor(
+        learning_rate=0.1,
+        n_estimators=1000,
+        max_depth=5,
+        min_child_weight=1,
+        gamma=0,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        colsample_bylevel=1.0,
+        reg_alpha=0,
+        reg_lambda=1,
+        scale_pos_weight=1,
+        max_delta_step=0,
+        objective='binary:logistic',
+        nthread=4,
+        seed=5
+    )
+
+    n_estimators, train_score, test_score = cv_fit_xgb_model(
+        model, X_train, y_train, X_test, y_test, cv_nfold=5,
+        early_stopping_rounds=50, scorer=roc_auc_score, verbose=True
+    )
+    """
+    # Train cv
+    xgb_param = model.get_xgb_params()
+    dtrain = xgb.DMatrix(X_train.values, label=y_train.values, missing=missing)
+    cv_result = xgb.cv(
+        xgb_param,
+        dtrain,
+        num_boost_round=model.get_params()['n_estimators'],
+        nfold=cv_nfold,
+        metrics=['auc'],
+        early_stopping_rounds=early_stopping_rounds,
+        show_progress=False)
+    best_n_estimators = cv_result.shape[0]
+    model.set_params(n_estimators=best_n_estimators)
+
+    # Train model
+    model.fit(X_train, y_train, eval_metric='auc')
+
+    # Predict training data
+    y_hat_train = model.predict(X_train)
+
+    # Predict test data
+    y_hat_test = model.predict(X_test)
+
+    train_score = scorer(y_train, y_hat_train)
+    test_score = scorer(y_test,  y_hat_test)
+
+    # Print model report:
+    if verbose:
+        print("\nModel Report")
+        print("best n_estimators: {}".format(best_n_estimators))
+        print("Score (Train): %f" % train_score)
+        print("Score (Test) : %f" % test_score)
+
+    return best_n_estimators, train_score, test_score
