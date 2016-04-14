@@ -4,7 +4,7 @@
 
 # Author          : Jin Kim jjinking(at)gmail(dot)com
 # Creation date   : 2016.03.14
-# Last Modified   : 2016.04.13
+# Last Modified   : 2016.04.14
 #
 # License         : MIT
 
@@ -16,7 +16,7 @@ import xgboost as xgb
 from sklearn.grid_search import GridSearchCV as GSCV
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import make_scorer
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import roc_curve, auc, roc_auc_score
 
 
 def train_predict(descriptions_clfs,
@@ -172,9 +172,11 @@ def cv_fit_xgb_model(model,
                      cv_nfold=5,
                      early_stopping_rounds=50,
                      missing=np.nan,
-                     scorer=accuracy_score,
+                     eval_metric='auc',
+                     scorer=roc_auc_score,
                      verbose=True):
     """Fit xgb model with best n_estimators using xgb builtin cv
+    Note: This function changes the model's `n_estimators` attribute
 
     Parameters
     ----------
@@ -199,8 +201,13 @@ def cv_fit_xgb_model(model,
     missing : float
         Value in the data which needs to be present as a missing value.
 
+    eval_metric : str
+        The metric to be used for validation data while training xgb
+        Probably should match `scorer`
+
     scorer : function or method
         Measures performance of a model, takes 2 parameters, y_true and y_hat
+        Probably should match `eval_metric`
 
     verbose : bool
         Print scoring summary to stdout
@@ -250,14 +257,14 @@ def cv_fit_xgb_model(model,
         dtrain,
         num_boost_round=model.get_params()['n_estimators'],
         nfold=cv_nfold,
-        metrics=['auc'],
+        metrics=[eval_metric],
         early_stopping_rounds=early_stopping_rounds,
         show_progress=False)
     best_n_estimators = cv_result.shape[0]
     model.set_params(n_estimators=best_n_estimators)
 
     # Train model
-    model.fit(X_train, y_train, eval_metric='auc')
+    model.fit(X_train, y_train, eval_metric=eval_metric)
 
     # Predict training data
     y_hat_train = model.predict(X_train)
