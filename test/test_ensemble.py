@@ -1,5 +1,4 @@
 """Tests for the ensemble.py
-
 """
 
 # Author          : Jin Kim jjinking(at)gmail(dot)com

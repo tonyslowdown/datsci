@@ -1,14 +1,14 @@
 """Module to handle data munging/wrangling
-
 """
 
 # Author          : Jin Kim jjinking(at)gmail(dot)com
 # Creation date   : 2014.02.13
-# Last Modified   : 2016.04.14
+# Last Modified   : 2016.04.15
 #
 # License         : MIT
 
 import csv
+import numpy as np
 import pandas as pd
 import sys
 from datetime import datetime
@@ -22,7 +22,7 @@ def remove_null_big_data(fname_in, fname_out, delim=','):
     with dataio.fopen(fname_in, 'r') as fi, dataio.fopen(fname_out, 'w') as fo:
         reader = csv.reader(fi, delimiter=delim)
         writer = csv.writer(fo, delimiter=delim)
-        writer.writerow(reader.next())
+        writer.writerow(next(reader))
         for row in reader:
             if '' in row:
                 continue
@@ -47,19 +47,19 @@ def remove_col_big_data(
             writer.writerow([x for i, x in enumerate(row) if i not in indices])
 
 
-def one_hot_encode_features(df, columns=[]):
+def one_hot_encode(df, columns=[], prefix='onehot_'):
     """Create one-hot encoded features and remove original
 
-    If columns is empty list, then all features will be one-hot encoded
+    *Note* if columns is empty list, then all features will be one-hot encoded
     """
     # Determine which columns to one-hot encode
     if not columns:
         columns = df.columns
     col = columns[0]
-    ohe_df = pd.get_dummies(df[col], prefix='onehot_' + col, prefix_sep='_')
+    ohe_df = pd.get_dummies(df[col], prefix=prefix + col, prefix_sep='_')
     for col in columns[1:]:
         ohe_df = ohe_df.join(
-            pd.get_dummies(df[col], prefix='onehot_' + col, prefix_sep='_'))
+            pd.get_dummies(df[col], prefix=prefix + col, prefix_sep='_'))
 
     # Attach to non-one-hot encoded columns
     non_ohe_cols = []
@@ -92,3 +92,123 @@ def remove_duplicates(df):
         return True
 
     return df[df.apply(is_unique, axis=1)]
+
+
+def balanced_subsets(
+        X_train, y_train, subsample=1.0, shuffle=True, labels=(0, 1)):
+    """Given unbalanced binary target values, create balanced subsets
+    that can be used to train multiple models, which can then be used
+    for ensembling.
+
+    The last subset contains remainders, so it is bigger than the
+    other subsets. Therefore, the last subset may not be balanced.
+
+    Parameters
+    ----------
+    X_train : pandas.DataFrame
+        Input samples
+
+    y_train : pandas.Series
+        Target values
+
+    subsample : float, (0.0, 1.0]
+        Sampling rate of the minority class within the balanced subsets
+
+    shuffle : bool
+        If True, Shuffle the data before creating subsets
+
+    labels : list or tuple of size 2
+        Contains unique values class labels
+
+    Returns
+    -------
+    subsamples : list of (pd.DataFrame, pd.Series) 2-tuples
+        Subsamples of X and y containing 'balanced' labels.
+        ex: [(X1, y1), (X2, y2), ...]
+    """
+    # Save column labels
+    features = X_train.columns
+    target_name = y_train.name
+
+    # Get numpy.ndarray values
+    X = X_train.values
+    y = y_train.values
+
+    # Find indices of y labels
+    idx = {
+        False: np.argwhere(y == labels[0]).reshape(-1),
+        True:  np.argwhere(y == labels[1]).reshape(-1)
+    }
+
+    # Count number of samples for each class label
+    n_label = {
+        False: len(idx[False]),
+        True:  len(idx[True])
+    }
+
+    # Counts of majority and minority y labels
+    label_maj = True if n_label[False] < n_label[True] else False
+    label_min = not label_maj
+
+    # Shuffle the samples (just the majority labels)
+    if shuffle:
+        idx[label_maj] = np.random.permutation(idx[label_maj])
+
+    # Create subsamples
+    subsamples = []
+    batch_size = int(subsample * n_label[label_min])
+    batch_size_combined = batch_size * 2  # combined batch size
+    L = int(n_label[label_maj] / batch_size)
+    a = 0
+    b = batch_size
+    for i in range(L - 1):
+        # Minority labels
+        batch_min_idx = np.random.choice(
+            idx[label_min], size=batch_size, replace=False)
+        batch_min_X = X[batch_min_idx]
+        batch_min_y = y[batch_min_idx]
+
+        # Majority labels
+        batch_maj_idx = idx[label_maj][a:b]
+        a, b = b, b + batch_size
+        batch_maj_X = X[batch_maj_idx]
+        batch_maj_y = y[batch_maj_idx]
+
+        # Intersperse the labels
+        batch_X = np.vstack((batch_min_X, batch_maj_X))
+        batch_y = np.hstack((batch_min_y, batch_maj_y))
+        mixed_idx = np.random.permutation(batch_size_combined)
+        subsamples.append((
+            pd.DataFrame(batch_X[mixed_idx], columns=features),
+            pd.Series(batch_y[mixed_idx], name=target_name)
+        ))
+
+    # -- Last subset containing remainders
+
+    # Majority labels
+    batch_maj_idx = idx[label_maj][a:]
+    batch_maj_X = X[batch_maj_idx]
+    batch_maj_y = y[batch_maj_idx]
+
+    # Minority labels
+    last_maj_batch_size = len(batch_maj_idx)
+    if last_maj_batch_size == batch_size:
+        last_min_batch_size = batch_size
+    elif last_maj_batch_size < n_label[label_min]:
+        last_min_batch_size = last_maj_batch_size
+    else:
+        last_min_batch_size = n_label[label_min]
+    batch_min_idx = np.random.choice(
+        idx[label_min], size=last_min_batch_size, replace=False)
+    batch_min_X = X[batch_min_idx]
+    batch_min_y = y[batch_min_idx]
+
+    # Intersperse the labels
+    batch_X = np.vstack((batch_min_X, batch_maj_X))
+    batch_y = np.hstack((batch_min_y, batch_maj_y))
+    mixed_idx = np.random.permutation(len(batch_y))
+    subsamples.append((
+        pd.DataFrame(batch_X[mixed_idx], columns=features),
+        pd.Series(batch_y[mixed_idx], name=target_name)
+    ))
+    return subsamples

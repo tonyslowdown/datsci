@@ -1,10 +1,10 @@
-"""Handle data io
+"""Handle io
 
 """
 
 # Author          : Jin Kim jjinking(at)gmail(dot)com
 # Creation date   : 2013.09.23
-# Last Modified   : 2016.04.12
+# Last Modified   : 2016.04.15
 #
 # License         : MIT
 
@@ -66,10 +66,7 @@ def fopen(fname, mode='r'):
         return gzip.open(fname, mode + 'b')
 
     # All other formats
-    elif mode == 'r':
-        return open(fname, 'rU')
-    else:
-        return open(fname, 'wb')
+    return open(fname, mode)
 
 
 def reservoir_sample(iterable, k, rseed=None, progress_int=None):
