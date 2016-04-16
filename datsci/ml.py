@@ -4,7 +4,7 @@
 
 # Author          : Jin Kim jjinking(at)gmail(dot)com
 # Creation date   : 2016.03.14
-# Last Modified   : 2016.04.14
+# Last Modified   : 2016.04.15
 #
 # License         : MIT
 
@@ -21,7 +21,7 @@ from sklearn.metrics import roc_curve, auc, roc_auc_score
 
 def train_predict(descriptions_clfs,
                   X_train, y_train,
-                  X_test, y_test,
+                  X_valid, y_valid,
                   scorer=accuracy_score):
     """Run preliminary performance analyses of multiple machine learning models.
 
@@ -37,7 +37,7 @@ def train_predict(descriptions_clfs,
     y_train : pandas.Series
         Training target data
 
-    X_test, y_test : same as X_train, y_train, but used for testing
+    X_valid, y_valid : same as X_train, y_train, but used for validation
 
     scorer : function or method
         Measures performance of a model, takes 2 parameters, y_true and y_hat
@@ -65,21 +65,21 @@ def train_predict(descriptions_clfs,
         result['score_train'] = scorer(y_train.values, y_hat)
         result['time_predict_train'] = end - start
 
-        # Predict test
+        # Predict validation
         start = time.time()
-        y_hat = clf.predict(X_test)
+        y_hat = clf.predict(X_valid)
         end = time.time()
-        result['score_test'] = scorer(y_test.values, y_hat)
-        result['time_predict_test'] = end - start
+        result['score_valid'] = scorer(y_valid.values, y_hat)
+        result['time_predict_valid'] = end - start
 
         results.append(result)
 
     return pd.DataFrame(results)[[
-        'description', 'score_train', 'score_test',
-        'time_train', 'time_predict_train', 'time_predict_test']]
+        'description', 'score_train', 'score_valid',
+        'time_train', 'time_predict_train', 'time_predict_valid']]
 
 
-def fine_tune_params(clf, X_train, y_train, X_test, y_test, param_grid,
+def fine_tune_params(clf, X_train, y_train, X_valid, y_valid, param_grid,
                      n_runs=5, n_cv=5, scorer=accuracy_score, n_jobs=2,
                      gscv_kwargs={}):
     """Fine tune model using multiple runs of sklearn's GridSearchCV, since it
@@ -96,7 +96,7 @@ def fine_tune_params(clf, X_train, y_train, X_test, y_test, param_grid,
     y_train : pandas.Series
         Training target data
 
-    X_test, y_test : same as X_train, y_train, but used for testing
+    X_valid, y_valid : same as X_train, y_train, but used for validation
 
     param_grid : dictionary
         Parameter values to use in GridSearchCV
@@ -133,7 +133,7 @@ def fine_tune_params(clf, X_train, y_train, X_test, y_test, param_grid,
         gs_clf = GSCV(clf, param_grid, cv=n_cv, n_jobs=n_jobs,
                       scoring=make_scorer(scorer), **gscv_kwargs)
         gs_clf.fit(X_train, y_train)
-        _score = scorer(y_test, gs_clf.predict(X_test))
+        _score = scorer(y_valid, gs_clf.predict(X_valid))
         if best_score is None or best_score < _score:
             best_score = _score
             best_model = gs_clf.best_estimator_
@@ -168,7 +168,7 @@ def plot_roc(y_true, y_hat):
 
 def cv_fit_xgb_model(model,
                      X_train, y_train,
-                     X_test, y_test,
+                     X_valid, y_valid,
                      cv_nfold=5,
                      early_stopping_rounds=50,
                      missing=np.nan,
@@ -188,7 +188,7 @@ def cv_fit_xgb_model(model,
     y_train : pandas.Series
         Training target data
 
-    X_test, y_test : same as X_train, y_train, but used for testing
+    X_valid, y_valid : same as X_train, y_train, but used for validation
 
     cv_nfold : int
         Number of folds in CV
@@ -220,8 +220,8 @@ def cv_fit_xgb_model(model,
     train_score : float
         Performance of the best model on training set
 
-    test_score : float
-        Performance of the best model on test set
+    valid_score : float
+        Performance of the best model on validation set
 
     Example
     -------
@@ -244,8 +244,8 @@ def cv_fit_xgb_model(model,
         seed=5
     )
 
-    n_estimators, train_score, test_score = cv_fit_xgb_model(
-        model, X_train, y_train, X_test, y_test, cv_nfold=5,
+    n_estimators, train_score, valid_score = cv_fit_xgb_model(
+        model, X_train, y_train, X_valid, y_valid, cv_nfold=5,
         early_stopping_rounds=50, scorer=roc_auc_score, verbose=True
     )
     """
@@ -269,17 +269,17 @@ def cv_fit_xgb_model(model,
     # Predict training data
     y_hat_train = model.predict(X_train)
 
-    # Predict test data
-    y_hat_test = model.predict(X_test)
+    # Predict valid data
+    y_hat_valid = model.predict(X_valid)
 
     train_score = scorer(y_train, y_hat_train)
-    test_score = scorer(y_test,  y_hat_test)
+    valid_score = scorer(y_valid,  y_hat_valid)
 
     # Print model report:
     if verbose:
         print("\nModel Report")
         print("best n_estimators: {}".format(best_n_estimators))
         print("Score (Train): %f" % train_score)
-        print("Score (Test) : %f" % test_score)
+        print("Score (Validation) : %f" % valid_score)
 
-    return best_n_estimators, train_score, test_score
+    return best_n_estimators, train_score, valid_score
