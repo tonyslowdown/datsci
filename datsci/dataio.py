@@ -4,11 +4,15 @@
 
 # Author          : Jin Kim jjinking(at)gmail(dot)com
 # Creation date   : 2013.09.23
-# Last Modified   : 2016.04.15
+# Last Modified   : 2016.04.17
 #
 # License         : MIT
 
+import gzip
+import tarfile
+import zipfile
 import csv
+import io
 import os
 import pandas as pd
 import random
@@ -26,9 +30,6 @@ def fopen(fname, mode='r'):
     Can handle the following: txt, csv, tsv, zip, gz, tar.gz, tar.bz2
     Usages may be different for various compression libraries
     """
-    import gzip
-    import tarfile
-    import zipfile
 
     # Process file type
     if not isinstance(fname, str):
@@ -43,8 +44,8 @@ def fopen(fname, mode='r'):
             raise NotImplementedError(
                 'Cannot write to given format: {}\n'.format(fext))
 
-        f = zipfile.ZipFile(fname, "r")
-        return f.open(f.namelist()[0])
+        f = zipfile.ZipFile(fname)
+        return io.TextIOWrapper(f.open(f.namelist()[0]))
 
     # tar.gz and tar.bz2
     elif fext2 == '.tar':
@@ -59,11 +60,11 @@ def fopen(fname, mode='r'):
         elif fext == '.bz2':
             _mode = 'r:bz2'
         f = tarfile.open(fname, _mode)
-        return f.extractfile(f.getnames()[0])
+        return io.TextIOWrapper(f.extractfile(f.getnames()[0]))
 
     # Just gz file
     elif fext == '.gz':
-        return gzip.open(fname, mode + 'b')
+        return io.TextIOWrapper(gzip.open(fname, mode + 'b'))
 
     # All other formats
     return open(fname, mode)
@@ -117,7 +118,7 @@ def load_subset(fname, k=None, sep=',', colnames=None,
         # Handle column names logic
         names = None
         if header == 0:
-            names = reader.next()
+            names = next(reader)
         if colnames is not None:
             names = colnames
 
@@ -131,7 +132,7 @@ def head(fname, k=10, sep=','):
     '''
     with fopen(fname) as fin:
         reader = csv.reader(fin, delimiter=sep)
-        colnames = reader.next()
+        colnames = next(reader)
         if k == 0:
             return pd.Series(colnames)
 
