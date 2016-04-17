@@ -1,10 +1,9 @@
 """Exploratory Data Analysis
-
 """
 
 # Author          : Jin Kim jjinking(at)gmail(dot)com
 # Creation date   : 2014.02.13
-# Last Modified   : 2016.04.12
+# Last Modified   : 2016.04.17
 #
 # License         : MIT
 
@@ -57,13 +56,15 @@ def pprint(df):
 
 
 def df_isclose(df1, df2, tol=1e-8):
-    '''
-    Determine if the values in 2 dataframes are very close in values,
-    essentially equal with tolerance tol
-    '''
+    """Determine if the numeric values in 2 dataframes are very close in values,
+    essentially equal with tolerance tol"""
+    df1_num = df1.select_dtypes(include=[np.number])
+    df2_num = df2.select_dtypes(include=[np.number])
     return np.isclose(
-        df1.values, df2.values, atol=tol
-    ).sum() == (df1.shape[0] * df1.shape[1])
+        df1_num.values,
+        df2_num.values,
+        atol=tol
+    ).sum() == np.prod(df1_num.shape) == np.prod(df2_num.shape)
 
 
 def find_const_cols(df, exclude_nan=True):

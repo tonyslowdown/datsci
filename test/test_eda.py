@@ -1,18 +1,13 @@
 """Unit test for eda.py
-
 """
 
 # Author          : Jin Kim jjinking(at)gmail(dot)com
 # Creation date   : 2014.02.13
-# Last Modified   : 2016.04.12
+# Last Modified   : 2016.04.17
 #
 # License         : MIT
 
 import os
-import sys
-
-# Add project root to PYTHONPATH
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), os.path.pardir))
 import numpy as np
 import pandas as pd
 import scipy.stats
@@ -20,71 +15,50 @@ import unittest
 from datsci import eda
 from sklearn.ensemble import RandomForestClassifier
 
+CURDIR = os.path.dirname(os.path.abspath(__file__))
+
+
 class TestEda(unittest.TestCase):
-    '''
-    Unit tests for the eda module
-    '''
 
-    def setUp(self):
-        '''
-        Set up test environment variables
-        '''
-        self.curdir = os.path.dirname(os.path.abspath(__file__))
+    def test_df_isclose(self):
 
-    def test_df_equal(self):
-        '''
-        Test checking to see if two dataframes are equal
-        '''
         # Test integers
-        df1 = pd.DataFrame([[1,2],
-                            [3,4]])
-        df2 = pd.DataFrame([[1,2],
-                            [3,4]])
-        self.assertTrue(eda.df_equal(df1, df2))
+        df1 = pd.DataFrame([[1, 2],
+                            [3, 4]])
+        df2 = pd.DataFrame([[1, 2],
+                            [3, 4]])
+        self.assertTrue(eda.df_isclose(df1, df2, tol=0))
 
-        df1 = pd.DataFrame([[1,2],
-                            [3,5]])
-        df2 = pd.DataFrame([[1,2],
-                            [3,4]])
-        self.assertFalse(eda.df_equal(df1, df2))
-
-        # Test strings
-        df1 = pd.DataFrame([['a',2],
-                            [3,'c']])
-        df2 = pd.DataFrame([['a',2],
-                            [3,'c']])
-        self.assertTrue(eda.df_equal(df1, df2))
-
-        df1 = pd.DataFrame([['a',2],
-                            [3,'c']])
-        df2 = pd.DataFrame([['c',2],
-                            [3,'c']])
-        self.assertFalse(eda.df_equal(df1, df2))
+        df1 = pd.DataFrame([[1, 2],
+                            [3, 5]])
+        df2 = pd.DataFrame([[1, 2],
+                            [3, 4]])
+        self.assertFalse(eda.df_isclose(df1, df2))
 
         # Test rounding
         df1 = pd.DataFrame([[1.1234, 2.1234],
                             [3.1234, 4.1234]])
         df2 = pd.DataFrame([[1.1234, 2.1234],
                             [3.1234, 4.1234]])
-        self.assertTrue(eda.df_equal(df1, df2))
+        self.assertTrue(eda.df_isclose(df1, df2))
 
         df1 = pd.DataFrame([[1.1234, 2.1234],
                             [3.1234, 5.1234]])
         df2 = pd.DataFrame([[1.1234, 2.1234],
                             [3.1234, 4.1232]])
-        self.assertFalse(eda.df_equal(df1, df2))
+        self.assertFalse(eda.df_isclose(df1, df2))
 
         df1 = pd.DataFrame([[1.1234, 2.1234],
                             [3.1234, 4.1234]])
         df2 = pd.DataFrame([[1.1234, 2.1234],
                             [3.1234, 4.1232]])
-        self.assertTrue(eda.df_equal(df1, df2, decimals=3))
+        self.assertTrue(eda.df_isclose(df1, df2, decimals=3))
 
         df1 = pd.DataFrame([[np.nan, 2.1234],
                             [3.1234, 5.1234123]])
         df2 = pd.DataFrame([[np.nan, 2.1234],
                             [3.1234, 5.123412]])
-        self.assertTrue(eda.df_equal(df1, df2, decimals=6))
+        self.assertTrue(eda.df_isclose(df1, df2, decimals=6))
 
     def test_find_uinfo_cols(self):
         '''
@@ -206,38 +180,11 @@ class TestEda(unittest.TestCase):
         self.assertEqual(len(cols), 3)
         self.assertEqual(cols, ['b','f','h'])
 
-    def test_cross_validate_feature_groups(self):
-        '''
-        Test cross validating multiple feature groups
-        '''
-        # Must raise error if the number of feature groups is not equal to the number of titles
-        self.assertRaises(ValueError,
-                          eda.cross_validate_feature_groups,
-                          'clf',
-                          'df',
-                          [1,2],
-                          'y',
-                          [1,2,3])
-
-        df = pd.DataFrame([[0, 0, 0, 0, 1, 0, 0],
-                           [0, 1, 0, 0, 0, 1, 0],
-                           [0, 0, 1, 0, 1, 0, 0],
-                           [0, 1, 1, 1, 0, 1, 1],
-                           [1, 0, 1, 1, 1, 0, 1],
-                           [1, 1, 1, 1, 0, 1, 1]],
-                          columns=['a','b','c','d','e','f','g'])
-        clf = RandomForestClassifier(n_estimators=10)
-        cv_results = eda.cross_validate_feature_groups(clf, df, [['a','b'],['c','d'],['e','f']],
-                                                       df.g, cv=3,
-                                                       titles=['group 1(a,b)', 'group 2(c,d)',
-                                                               'group 3(c,d)'], plot=False)
-        self.assertEqual(cv_results.shape, (3,3))
-
     def test_summarize_training_data(self):
         '''
         Test file summarization
         '''
-        sample_file_csv = os.path.join(self.curdir, 'res', 'sample1.csv')
+        sample_file_csv = os.path.join(CURDIR, 'res', 'sample1.csv')
         df = pd.read_csv(sample_file_csv)
         (summary,
          n_rows,
@@ -261,7 +208,7 @@ class TestEda(unittest.TestCase):
         self.assertEqual(summary[summary['attribute']=='c']['n_null'].values[0], 0)
         self.assertEqual(summary[summary['attribute']=='c']['perc_null'].values[0], 0)
 
-        sample_file_csv = os.path.join(self.curdir, 'res', 'sample2.csv')
+        sample_file_csv = os.path.join(CURDIR, 'res', 'sample2.csv')
         df = pd.read_csv(sample_file_csv)
         (summary,
          n_rows,
@@ -295,8 +242,8 @@ class TestEda(unittest.TestCase):
         self.assertEqual(summary_c['perc_null'].values[0], .3)
         self.assertEqual(summary_c['n_uniq'].values[0], 4)
 
-        sample_file_csv = os.path.join(self.curdir, 'res', 'sample3.csv')
-        summary_pkl_file = os.path.join(self.curdir, 'res', 'foo.pkl')
+        sample_file_csv = os.path.join(CURDIR, 'res', 'sample3.csv')
+        summary_pkl_file = os.path.join(CURDIR, 'res', 'foo.pkl')
         df = pd.read_csv(sample_file_csv)
         (summary,
          n_rows,
@@ -335,7 +282,7 @@ class TestEda(unittest.TestCase):
 
         # Check saved values can be loaded and is correct
         summary2, n_rows2, label_counts2 = eda.load_summary_data(summary_pkl_file)
-        self.assertTrue(eda.df_equal(summary, summary2))
+        self.assertTrue(eda.df_isclose(summary, summary2))
         self.assertEqual(n_rows, n_rows2)
         self.assertEqual(str(list(label_counts.items())),
                          str(list(label_counts2.items())))
@@ -358,7 +305,7 @@ class TestEda(unittest.TestCase):
         '''
         for fname in ['sample1.csv', 'sample1.csv.zip', 'sample1.csv.gz',
                       'sample1.csv.tar.gz', 'sample1.csv.tar.bz2']:
-            sample_file_csv = os.path.join(self.curdir, 'res', fname)
+            sample_file_csv = os.path.join(CURDIR, 'res', fname)
             (summary,
              n_rows,
              label_counts) = eda.summarize_big_training_data(sample_file_csv,
@@ -386,8 +333,8 @@ class TestEda(unittest.TestCase):
             self.assertEqual(summary_c['perc_null'].values[0], 0)
 
 
-        sample_file_csv = os.path.join(self.curdir, 'res', 'sample2.csv')
-        summary_pkl_file = os.path.join(self.curdir, 'res', 'foo.pkl')
+        sample_file_csv = os.path.join(CURDIR, 'res', 'sample2.csv')
+        summary_pkl_file = os.path.join(CURDIR, 'res', 'foo.pkl')
         (summary,
          n_rows,
          label_counts) = eda.summarize_big_training_data(sample_file_csv,
@@ -426,7 +373,7 @@ class TestEda(unittest.TestCase):
 
         # Check saved values can be loaded and is correct
         summary2, n_rows2, label_counts2 = eda.load_summary_data(summary_pkl_file)
-        self.assertTrue(eda.df_equal(summary, summary2))
+        self.assertTrue(eda.df_isclose(summary, summary2))
         self.assertEqual(n_rows, n_rows2)
         self.assertEqual(set(label_counts.items()),
                          set(label_counts2.items()))
@@ -447,7 +394,7 @@ class TestEda(unittest.TestCase):
         '''
         Test counting column values in file
         '''
-        sample_file_csv = os.path.join(self.curdir, 'res', 'sample4.csv')
+        sample_file_csv = os.path.join(CURDIR, 'res', 'sample4.csv')
         value_counts = eda.count_big_file_value_counts(sample_file_csv, 'a')
         self.assertEqual(value_counts['1'], 4)
         self.assertEqual(value_counts['0'], 2)
