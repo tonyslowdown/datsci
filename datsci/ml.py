@@ -20,6 +20,20 @@ from sklearn.metrics.scorer import check_scoring, get_scorer
 
 class LRRegressor(LogisticRegression):
     """Logistic Regressor that returns probability values intead of class labels
+
+    Useful for use with AdaBoostRegressor
+
+    Example
+    -------
+
+    model = ml.LRRegressor(
+        penalty='l2', C=1.0, random_state=5
+    )
+    model_abr = AdaBoostRegressor(
+        base_estimator=model, n_estimators=10, learning_rate=1.0,
+        loss='linear', random_state=5)
+
+    model_abr.fit(X_train, y_train)
     """
     def predict(self, X):
         return self.predict_proba(X)[:, 1]
