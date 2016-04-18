@@ -4,7 +4,7 @@
 
 # Author          : Jin Kim jjinking(at)gmail(dot)com
 # Creation date   : 2016.03.14
-# Last Modified   : 2016.04.15
+# Last Modified   : 2016.04.18
 #
 # License         : MIT
 
@@ -13,23 +13,22 @@ import numpy as np
 import pandas as pd
 import time
 import xgboost as xgb
-from sklearn.grid_search import GridSearchCV as GSCV
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import make_scorer
-from sklearn.metrics import roc_curve, auc, roc_auc_score
+from sklearn.grid_search import GridSearchCV
+from sklearn.metrics import roc_curve, auc
+from sklearn.metrics.scorer import check_scoring, get_scorer
 
 
-def train_predict(descriptions_clfs,
+def train_predict(descriptions_models,
                   X_train, y_train,
                   X_valid, y_valid,
-                  scorer=accuracy_score):
+                  scoring=None):
     """Run preliminary performance analyses of multiple machine learning models.
 
     Parameters
     ----------
-    descriptions_clfs : Iterable of 2-tuples (str, object)
-        Each 2-tuple element contains descriptive text and a classifier object.
-        i.e. [('Classifier1 info', clf1), ('Classifier2 info', clf2), ...]
+    descriptions_models : Iterable of 2-tuples (str, object)
+        Each 2-tuple element contains descriptive text and a model object.
+        i.e. [('Model1 info', model1), ('Model2 info', model2), ...]
 
     X_train : pandas.DataFrame
         Training features data
@@ -39,38 +38,36 @@ def train_predict(descriptions_clfs,
 
     X_valid, y_valid : same as X_train, y_train, but used for validation
 
-    scorer : function or method
-        Measures performance of a model, takes 2 parameters, y_true and y_hat
+    scoring : str, callable or None, default=None
+        See `scoring` parameter description for
+        sklearn.grid_search.GridSearchCV.html
 
     Returns
     -------
     df_summary : pandas.DataFrame
         Performance summary of all the models
     """
-    results = []
-    for description, clf in descriptions_clfs:
 
+    results = []
+    for description, model in descriptions_models:
+
+        scorer = check_scoring(model, scoring=scoring)
         result = {'description': description}
 
         # Train
         start = time.time()
-        clf.fit(X_train, y_train)
-        end = time.time()
-        result['time_train'] = end - start
+        model.fit(X_train, y_train)
+        result['time_train'] = time.time() - start
 
         # Predict train
         start = time.time()
-        y_hat = clf.predict(X_train)
-        end = time.time()
-        result['score_train'] = scorer(y_train.values, y_hat)
-        result['time_predict_train'] = end - start
+        result['score_train'] = scorer(model, X_train, y_train)
+        result['time_predict_train'] = time.time() - start
 
         # Predict validation
         start = time.time()
-        y_hat = clf.predict(X_valid)
-        end = time.time()
-        result['score_valid'] = scorer(y_valid.values, y_hat)
-        result['time_predict_valid'] = end - start
+        result['score_valid'] = scorer(model, X_valid, y_valid)
+        result['time_predict_valid'] = time.time() - start
 
         results.append(result)
 
@@ -79,15 +76,15 @@ def train_predict(descriptions_clfs,
         'time_train', 'time_predict_train', 'time_predict_valid']]
 
 
-def fine_tune_params(clf, X_train, y_train, X_valid, y_valid, param_grid,
-                     n_runs=5, n_cv=5, scorer=accuracy_score, n_jobs=2,
+def fine_tune_params(model, X_train, y_train, X_valid, y_valid, param_grid,
+                     n_runs=5, n_cv=5, scoring=None, n_jobs=2,
                      gscv_kwargs={}):
     """Fine tune model using multiple runs of sklearn's GridSearchCV, since it
     shuffles the data per run.
 
     Parameters
     ----------
-    clf: object
+    model: object
         Machine learning model
 
     X_train : pandas.DataFrame
@@ -107,8 +104,9 @@ def fine_tune_params(clf, X_train, y_train, X_valid, y_valid, param_grid,
     n_cv : int
         GridSearchCV's `cv` parameter
 
-    scorer : function or method
-        Measures performance of a model, takes 2 parameters, y_true and y_hat
+    scoring : str, callable or None, default=None
+        See `scoring` parameter description for
+        sklearn.grid_search.GridSearchCV.html
 
     n_jobs : int
         GridSearchCV's `n_jobs` parameter
@@ -126,17 +124,25 @@ def fine_tune_params(clf, X_train, y_train, X_valid, y_valid, param_grid,
     """
     best_score = None
     best_model = None
+    scorer = check_scoring(model, scoring=scoring)
+
     for i in range(n_runs):
+        # Print progress
         if i < 3 or i % 10 == 0:
             print("iteration {}".format(i))
             starttime = time.time()
-        gs_clf = GSCV(clf, param_grid, cv=n_cv, n_jobs=n_jobs,
-                      scoring=make_scorer(scorer), **gscv_kwargs)
-        gs_clf.fit(X_train, y_train)
-        _score = scorer(y_valid, gs_clf.predict(X_valid))
+
+        gs_model = GridSearchCV(
+            model, param_grid, cv=n_cv, n_jobs=n_jobs,
+            scoring=scoring, **gscv_kwargs
+        ).fit(X_train, y_train)
+
+        _score = scorer(gs_model, X_valid, y_valid)
         if best_score is None or best_score < _score:
             best_score = _score
-            best_model = gs_clf.best_estimator_
+            best_model = gs_model.best_estimator_
+
+        # Print progress
         if i < 3 or i % 10 == 0:
             runtime = time.time() - starttime
             print("Each iteration time(secs): {:.3f}".format(runtime))
@@ -173,7 +179,7 @@ def cv_fit_xgb_model(model,
                      early_stopping_rounds=50,
                      missing=np.nan,
                      eval_metric='auc',
-                     scorer=roc_auc_score,
+                     scoring=None,
                      verbose=True):
     """Fit xgb model with best n_estimators using xgb builtin cv
     Note: This function changes the model's `n_estimators` attribute
@@ -203,11 +209,11 @@ def cv_fit_xgb_model(model,
 
     eval_metric : str
         The metric to be used for validation data while training xgb
-        Probably should match `scorer`
+        Probably should match `scoring`
 
-    scorer : function or method
-        Measures performance of a model, takes 2 parameters, y_true and y_hat
-        Probably should match `eval_metric`
+    scoring : str, callable or None, default=None
+        See `scoring` parameter description for
+        sklearn.grid_search.GridSearchCV.html
 
     verbose : bool
         Print scoring summary to stdout
@@ -246,7 +252,7 @@ def cv_fit_xgb_model(model,
 
     n_estimators, train_score, valid_score = cv_fit_xgb_model(
         model, X_train, y_train, X_valid, y_valid, cv_nfold=5,
-        early_stopping_rounds=50, scorer=roc_auc_score, verbose=True
+        early_stopping_rounds=50, scoring='roc_auc', verbose=True
     )
     """
     # Train cv
@@ -266,14 +272,11 @@ def cv_fit_xgb_model(model,
     # Train model
     model.fit(X_train, y_train, eval_metric=eval_metric)
 
-    # Predict training data
-    y_hat_train = model.predict(X_train)
-
-    # Predict valid data
-    y_hat_valid = model.predict(X_valid)
-
-    train_score = scorer(y_train, y_hat_train)
-    valid_score = scorer(y_valid,  y_hat_valid)
+    scorer = get_scorer(scoring)
+    # Predict and score training data
+    train_score = scorer(model, X_train, y_train)
+    # Predict and score validation data
+    valid_score = scorer(model, X_valid, y_valid)
 
     # Print model report:
     if verbose:
