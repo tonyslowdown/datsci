@@ -1,5 +1,4 @@
 """Tools for running machine learning algorithms
-
 """
 
 # Author          : Jin Kim jjinking(at)gmail(dot)com
@@ -14,8 +13,16 @@ import pandas as pd
 import time
 import xgboost as xgb
 from sklearn.grid_search import GridSearchCV
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_curve, auc
 from sklearn.metrics.scorer import check_scoring, get_scorer
+
+
+class LRRegressor(LogisticRegression):
+    """Logistic Regressor that returns probability values intead of class labels
+    """
+    def predict(self, X):
+        return self.predict_proba(X)[:, 1]
 
 
 def train_predict(descriptions_models,
