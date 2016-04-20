@@ -3,52 +3,46 @@
 
 # Author          : Jin Kim jjinking(at)gmail(dot)com
 # Creation date   : 2014.02.13
-# Last Modified   : 2016.04.17
+# Last Modified   : 2016.04.20
 #
 # License         : MIT
 
 import csv
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
+import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-try:
-    import queue
-except ImportError:
-    import Queue as queue
+import queue
+import seaborn as sns
 import sys
 from collections import defaultdict
 from contextlib import closing
 from datetime import datetime
 from matplotlib import style
-style.use('ggplot')
-import seaborn as sns
-sns.set_style("whitegrid")
-sns.set_context(rc={
-           "figure.figsize": (16, 10),
-           "axes.titlesize": 14})
 from prettytable import PrettyTable
 from sklearn.decomposition import PCA
 
 from datsci import dataio
 
+style.use('ggplot')
+sns.set_style("whitegrid")
+sns.set_context(rc={
+    "figure.figsize": (16, 10),
+    "axes.titlesize": 14
+})
+
 
 def get_dummy():
-    '''
-    Return a simple dataframe for testing something
-    '''
+    """Return a simple dataframe for testing something
+    """
     return pd.DataFrame({'a': [1, 2, 3],
                          'b': [4, 5, 6],
                          'c': ['d', 'e', 'f']})
 
 
 def pprint(df):
-    '''
-    Pretty-print data frame
-    '''
+    """Pretty-print data frame
+    """
     table = PrettyTable([''] + list(df.columns))
     for row in df.itertuples():
         table.add_row(row)
@@ -57,102 +51,92 @@ def pprint(df):
 
 def df_isclose(df1, df2, tol=1e-8):
     """Determine if the numeric values in 2 dataframes are very close in values,
-    essentially equal with tolerance tol"""
+    essentially equal with tolerance tol
+    """
     df1_num = df1.select_dtypes(include=[np.number])
     df2_num = df2.select_dtypes(include=[np.number])
     return np.isclose(
         df1_num.values,
         df2_num.values,
-        atol=tol
+        atol=tol,
+        equal_nan=True,
     ).sum() == np.prod(df1_num.shape) == np.prod(df2_num.shape)
 
 
-def find_const_cols(df, exclude_nan=True):
-    '''
-    Find constant (uninformative) columns
-    i.e. columns with all the same values (excluding nulls)
-    '''
-    def count_unique(col):
-        if exclude_nan:
-            col = col[~col.isnull()]
-        return col.nunique()
-    counts = df.apply(count_unique)
-    return list(counts[counts == 1].index)
+def find_const_cols(df, dropna=True):
+    """Find constant (uninformative) columns
+    Returns columns with all the same values (excluding nulls)
+    """
+    return find_n_nary_cols(df, n=1, dropna=dropna)
 
 
 def find_null_cols(df, frac=.8):
-    '''
-    Find columns containing >= frac null values
-    '''
+    """Find columns containing >= frac null values
+    """
     def compute_frac_null(col):
         return col[col.isnull()].size / float(df.shape[0])
     null_fracs = df.apply(compute_frac_null)
     return list(null_fracs[null_fracs >= frac].index)
 
 
-def find_n_nary_cols(df, n=2, exclude_nan=True):
-    '''
-    Given a dataframe, return the names of columns containing only
+def find_n_nary_cols(df, n=2, dropna=True):
+    """Given a dataframe, return the names of columns containing only
     n unique values. For example, binary columns contain n=2 unique values
-    '''
+    """
     return_cols = []
     for c in df:
         col = df[c]
-        if exclude_nan:
+        if dropna:
             col = col[~col.isnull()]
-        if col.nunique() == n:
+        if col.nunique(dropna=dropna) == n:
             return_cols.append(c)
     return return_cols
 
 
-def get_hist_unique_col_values(df, exclude_nan=True):
-    '''
-    Get histogram of the number of unique values per column
-    '''
+def get_hist_unique_col_values(df, dropna=True):
+    """Get histogram of the number of unique values per column
+    """
     num_unique_vals = []
     for c in df:
         col = df[c]
-        if exclude_nan:
+        if dropna:
             col = col[~col.isnull()]
-        num_unique_vals.append(col.nunique())
+        num_unique_vals.append(col.nunique(dropna=dropna))
     return pd.Series(num_unique_vals).value_counts().sort_index()
 
 
-def get_hist_unique_col_values_many(dfs, columns, exclude_nan=True):
-    '''
-    Return the results of get_hist_unique_col_values on multiple DataFrames
-    '''
+def get_hist_unique_col_values_many(dfs, columns, dropna=True):
+    """Return the results of get_hist_unique_col_values on multiple DataFrames
+    """
     results = {}
     for i, df in enumerate(dfs):
         results[columns[i]] = get_hist_unique_col_values(
-            df, exclude_nan=exclude_nan)
+            df, dropna=dropna)
     return pd.DataFrame(results)[columns]
 
 
 def find_categorical_columns(df_train, df_test):
-    '''
-    Find columns that are categorical by matching unique values between
+    """Find columns that are categorical by matching unique values between
     the train and test data
     Return list of tuples, each tuple containing column name and counts
     i.e. [('column1', 1), ('column2', 2), ...]
-    '''
+    """
     categorical_cols = []
     for c in df_train:
         col_train = df_train[c]
-        col_train_uniq = col_train[~col_train.isnull()].unique()
+        col_train_uniq = col_train.unique(dropna=True)
         col_test = df_test[c]
-        col_test_uniq = col_test[~col_test.isnull()].unique()
+        col_test_uniq = col_test.unique(dropna=True)
         if set(col_train_uniq) == set(col_test_uniq):
             categorical_cols.append((c, col_train_uniq.size))
     return sorted(categorical_cols, key=lambda p: p[1])
 
 
 def find_extreme_cols(df, T=10000):
-    '''
-    Return a list of column names that have extreme values that might
+    """Return a list of column names that have extreme values that might
     be in place of NaNs, i.e. -9999999
     Checks each column to see if abs(max|min) >= T * (75th percentile)
-    '''
+    """
     possible_cols = []
     for c in df.columns:
 
@@ -170,10 +154,9 @@ def find_extreme_cols(df, T=10000):
 
 
 def summarize_nulls(train, test, add_info_names=[], add_info_dicts=[]):
-    '''
-    Summarize null values in train and test data.
+    """Summarize null values in train and test data.
     Output contains only columns that have null values.
-    '''
+    """
     n_train, n_test = train.shape[0], test.shape[0]
     print('Num train samples: {}'.format(n_train))
     print('Num test samples: {}'.format(n_test))
@@ -198,9 +181,8 @@ def summarize_nulls(train, test, add_info_names=[], add_info_dicts=[]):
 
 
 def plot_null(df, title='nulls', sort=True, percent=True):
-    '''
-    Plot the nulls in each column of dataframe
-    '''
+    """Plot the nulls in each column of dataframe
+    """
     col_nulls = pd.isnull(df).sum()
     if percent:
         col_nulls = col_nulls / float(df.shape[0])
@@ -212,23 +194,21 @@ def plot_null(df, title='nulls', sort=True, percent=True):
 
 
 def plot_inf(df, title='infs', sort=True, percent=True):
-    '''
-    Plot the infs in each column of dataframe
-    '''
+    """Plot the infs in each column of dataframe
+    """
     col_infs = np.isinf(df).sum()
     if percent:
         col_infs = col_infs / float(df.shape[0])
     if sort:
         col_infs.sort()
-    plt.plot(col_infs);
+    plt.plot(col_infs)
     plt.title(title)
     return col_infs
 
 
 def plot_null_inf(df, sort=True, percent=True):
-    '''
-    Plot the distribution of nulls in each column
-    '''
+    """Plot the distribution of nulls in each column
+    """
     plt.figure(figsize=(16, 6))
     # Nulls
     plt.subplot(121)
@@ -241,14 +221,13 @@ def plot_null_inf(df, sort=True, percent=True):
 
 
 def get_feature_clusters(df, cols=None, thresh=0.95, method='pearson'):
-    '''
-    Find clusters of correlated columns by first computing correlation between
-    the columns and then grouping the columns based on a threshold
+    """Find clusters of correlated columns by first computing correlation between
+    the columns and then grouping the columns based on a threshold.
 
     Returns a list containing sets of clustered columns
 
     Uses BFS to find all column clusters
-    '''
+    """
     df_corr = df.corr(method=method)
 
     # Set nodes to be the column names of the data frame
@@ -258,19 +237,16 @@ def get_feature_clusters(df, cols=None, thresh=0.95, method='pearson'):
         nodes = cols
 
     def get_neighbors(n):
-        '''
-        Given a node n, get all other nodes that are connected to it
-        '''
+        """Given a node n, get all other nodes that are connected to it
+        """
         neighbors = set(df_corr[df_corr[n] >= thresh].index)
         if neighbors:
             neighbors.remove(n)
         return neighbors
 
     def get_cluster(n):
-        '''
-        Given a node n, find all connected nodes
-        Uses BFS
-        '''
+        """Given a node n, find all connected nodes using BFS
+        """
         q = queue.Queue(len(nodes))
         q.put(n)
         seen = set()
@@ -292,8 +268,7 @@ def get_feature_clusters(df, cols=None, thresh=0.95, method='pearson'):
 
 
 def summarize_training_data(df, y_name='Label', summary_pkl='summary_data.pkl'):
-    '''
-    Summarize columnar data
+    """Summarize columnar data
 
     Input:
       df: pandas DataFrame object containing training data
@@ -305,7 +280,7 @@ def summarize_training_data(df, y_name='Label', summary_pkl='summary_data.pkl'):
       DataFrame containing column summaries
       Number of total rows
       Number of unique labels/categories
-    '''
+    """
     def _is_nan(val):
         '''
         Runs np.isnan on a value if it's float type
@@ -430,7 +405,7 @@ def summarize_big_training_data(fname,
     with closing(dataio.fopen(fname)) as fin:
         reader = csv.reader(fin)
         # Store colnames
-        colnames = reader.next()
+        colnames = next(reader)
         for t,row in enumerate(reader):
             # Output progress
             if progress_int is not None and t % progress_int == 0:
