@@ -4,7 +4,7 @@
 
 # Author          : Jin Kim jjinking(at)gmail(dot)com
 # Creation date   : 2015.12.31
-# Last Modified   : 2016.04.12
+# Last Modified   : 2016.04.29
 #
 # License         : MIT
 
@@ -32,6 +32,9 @@ def save_submission(y_hat, save_file,
     sample_submission_file : str
         Path to example submission file provided by Kaggle
     """
+    if isinstance(y_hat, pd.Series):
+        y_hat = y_hat.values
+
     df = pd.read_csv(sample_submission_file)
     df[df.columns[1]] = y_hat
     df.to_csv(save_file, index=False)
