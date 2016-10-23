@@ -558,3 +558,23 @@ def corr_heat(df):
     ax = sns.heatmap(corr, square=True, cmap='seismic')
 
     return corr, ax
+
+
+def most_correlated(df, thresh=0.8):
+    """Find pairs of columns that are highly correlated
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Contains columnar data that will be used to compute
+        the correlation matrix
+
+    Returns
+    -------
+    pandas.Series
+    """
+    corr = df.corr()
+    # Lower triangle of the correlation matrix, below the diagonal of 1's
+    corr.loc[:, :] = np.tril(corr, k=-1)
+    corr = corr.stack()
+    return corr[(corr > thresh) | (corr < -thresh)]
