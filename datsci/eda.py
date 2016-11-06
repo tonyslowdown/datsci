@@ -623,7 +623,7 @@ def corrs_bin_w_numeric(df, bin_col, columns):
     corrs = []
     for c in columns:
         corrs.append(corr_bin_w_numeric(df, bin_col, c))
-    return pd.Series(corrs, name='corr')
+    return pd.Series(corrs, name='corr', index=columns)
 
 
 def scatter_plot_bin_vs_numeric(df, bin_col, numeric_col, figsize=(8, 6)):
