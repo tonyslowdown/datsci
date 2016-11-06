@@ -578,3 +578,50 @@ def most_correlated(df, thresh=0.8):
     corr.loc[:, :] = np.tril(corr, k=-1)
     corr = corr.stack()
     return corr[(corr > thresh) | (corr < -thresh)]
+
+
+def corr_bin_w_numeric(df, bin_col, numeric_col):
+    """Estimate correlation between a column containing binary data and
+    a column with numerical data by rank-ordering
+
+    Parameters
+    ---------
+    df : pandas.DataFrame
+        Contains columnar data containing the `bin_col` and `numeric_col` columns
+
+    bin_col : str
+        Name of column containing binary data
+
+    numeric_col : str
+        Name of column containing numerical data
+
+    Returns
+    -------
+    corr_estimate : float
+        Estimated correlation between the values of the two columns
+
+    Reference
+    ---------
+    http://stackoverflow.com/questions/13269890/cartesian-product-in-pandas
+    http://stats.stackexchange.com/questions/102778/correlations-between-continuous-and-categorical-nominal-variables
+    """
+    # Create a deep copy of the columns that we care about
+    _df = df[[bin_col, numeric_col]].copy(deep=True)
+    _df['dummy'] = 0  # Create dummy col for Cartesian product
+    _df = pd.merge(
+        _df[_df[bin_col] == 0],
+        _df[_df[bin_col] == 1],
+        on='dummy', suffixes=('_0', '_1'))
+    n_0_gt_1 = _df[_df[numeric_col + '_0'] > _df[numeric_col + '_1']].shape[0]
+    n_1_gt_0 = _df[_df[numeric_col + '_1'] > _df[numeric_col + '_0']].shape[0]
+    return max(n_1_gt_0, n_0_gt_1) / float(n_0_gt_1 + n_1_gt_0)
+
+
+def corrs_bin_w_numeric(df, bin_col, columns):
+    """Compute estimate of correlations between every column
+    in `columns` with bin_col
+    """
+    corrs = []
+    for c in columns:
+        corrs.append(corr_bin_w_numeric(df, bin_col, c))
+    return pd.Series(corrs, name='corr')
