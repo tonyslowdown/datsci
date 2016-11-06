@@ -19,6 +19,7 @@ from collections import defaultdict
 from contextlib import closing
 from datetime import datetime
 from matplotlib import style
+from pandas.tools.plotting import scatter_matrix
 from prettytable import PrettyTable
 from sklearn.decomposition import PCA
 
@@ -651,3 +652,26 @@ def scatter_plot_bin_vs_numeric(df, bin_col, numeric_col, figsize=(8, 6)):
     _df[_df[bin_col] == 0].plot(
         kind='scatter', x=bin_col, y=numeric_col, color='r', ax=ax)
     return ax
+
+
+def scatter_matrix_bin_target(df, bin_col, numeric_cols):
+    """Scatter matrix of numerical columns, showing colors based
+    on a binary target variable
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Contains columnar data containing `bin_col` and `numeric_cols` columns
+
+    bin_col : str
+        Name of column containing binary data
+
+    numeric_cols : [str]
+        List containing column names containing numerical data
+
+    Reference
+    ---------
+    http://stackoverflow.com/questions/28034424/pandas-scatter-matrix-plot-categorical-variables
+    """
+    _scatter_color = df[bin_col].apply(lambda v: ('red', 'blue')[v])
+    scatter_matrix(df[numeric_cols], c=_scatter_color)
