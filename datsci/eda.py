@@ -507,13 +507,12 @@ def count_big_file_value_counts(fname, colname):
 
 
 def biplot(df):
-    '''
+    """
     Create biplot using principle components 1 and 2
     Play around with the ranges for scaling the plot
     ax.set_xlim([-1.1, 1.1])
     ax.set_ylim([-1, 3])
-    '''
-
+    """
     # Fit on 2 components
     pca = PCA(n_components=2, whiten=True).fit(df)
 
@@ -625,3 +624,30 @@ def corrs_bin_w_numeric(df, bin_col, columns):
     for c in columns:
         corrs.append(corr_bin_w_numeric(df, bin_col, c))
     return pd.Series(corrs, name='corr')
+
+
+def scatter_plot_bin_vs_numeric(df, bin_col, numeric_col, figsize=(8, 6)):
+    """Scatter plot a binary target column vs a numeric valued column
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Contains columnar data containing the `bin_col` and `numeric_col` columns
+
+    bin_col : str
+        Name of column containing binary data
+
+    numeric_col : str
+        Name of column containing numerical data
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        Axes object for the plot
+    """
+    _df = df[[bin_col, numeric_col]].copy(deep=True)
+    ax = _df[_df[bin_col] == 1].plot(
+        kind='scatter', x=bin_col, y=numeric_col, figsize=figsize, color='b')
+    _df[_df[bin_col] == 0].plot(
+        kind='scatter', x=bin_col, y=numeric_col, color='r', ax=ax)
+    return ax
