@@ -47,19 +47,68 @@ def remove_col_big_data(
             writer.writerow([x for i, x in enumerate(row) if i not in indices])
 
 
-def one_hot_encode(df, columns=[], prefix='onehot_'):
-    """Create one-hot encoded features and remove original
+def one_hot_encode_series_of_lists(feature_col):
+    """
+    Take in a feature_col containing list values, and return a one-hot-encoded
+    DataFrame
+    """
+    seen_vals = dict()
+    idx = 0
+    prefix = feature_col.name
+    for vals in feature_col:
+        for val in vals:
+            val_name = prefix + '_' + val
+            if val_name not in seen_vals:
+                seen_vals[val_name] = ([0] * idx) + [1]
+            else:
+                for i in range(idx - len(seen_vals[val_name])):
+                    seen_vals[val_name].append(0)
+                seen_vals[val_name].append(1)
+        idx += 1
+    for k,v in seen_vals.items():
+        for _ in range(idx - len(v)):
+            v.append(0)
+    return pd.DataFrame(seen_vals)
 
+
+def one_hot_encode_list_cols(df, columns=[]):
+    """Create one-hot encoded features and remove original
+    *Note* if columns is empty list, then all features will be one-hot encoded
+    """
+    # Determine which columns to one-hot encode
+    if not columns:
+        columns = df.columns
+    
+    ohe_df = one_hot_encode_series_of_lists(df[columns[0]])
+    for col in columns[1:]:
+        ohe_df = ohe_df.join(one_hot_encode_series_of_lists(df[col]))
+
+    # Attach to non-one-hot encoded columns
+    non_ohe_cols = []
+    columns_set = set(columns)
+    for c in df.columns:
+        if c not in columns_set:
+            non_ohe_cols.append(c)
+
+     # If all columns are one-hot encoded, return them
+    if not non_ohe_cols:
+        return ohe_df
+
+    # Otherwise, join the two dfs
+    return df[non_ohe_cols].join(ohe_df)
+
+def one_hot_encode(df, columns=[]):
+    """Create one-hot encoded features and remove original
     *Note* if columns is empty list, then all features will be one-hot encoded
     """
     # Determine which columns to one-hot encode
     if not columns:
         columns = df.columns
     col = columns[0]
-    ohe_df = pd.get_dummies(df[col], prefix=prefix + col, prefix_sep='_')
+    ohe_df = pd.get_dummies(df[col], prefix=col, prefix_sep='_')
     for col in columns[1:]:
         ohe_df = ohe_df.join(
-            pd.get_dummies(df[col], prefix=prefix + col, prefix_sep='_'))
+            pd.get_dummies(df[col], prefix=col, prefix_sep='_'))
 
     # Attach to non-one-hot encoded columns
     non_ohe_cols = []
