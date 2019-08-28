@@ -46,30 +46,49 @@ def remove_col_big_data(
                     '{}\tencountered: {}\n'.format(datetime.now(), t))
             writer.writerow([x for i, x in enumerate(row) if i not in indices])
 
-
-def one_hot_encode_series_of_lists(feature_col):
+def one_hot_encode_series_of_lists(feature_col, list_values=None):
     """
-    Take in a feature_col containing list values, and return a one-hot-encoded
-    DataFrame
+    Take in a pd.Series `feature_col` containing `list_values`, and return a
+    pd.DataFrame containing one-hot encoded columns.
+    
+    If `list_values` is None, then a column for every unique value in
+    the series will be created.
+    
+    Otherwise, a column will be created for each of the values in `list_values`.
+    Also, an additional default column will be created to hold values that
+    did not belong to any of the `list_values`. Note, if a row in `feature_col`
+    contains multiple values that are not in `list_values`, there will only be a
+    single 1 in the default column.
+    
     """
-    seen_vals = dict()
+    if list_values is None:
+        seen_vals = dict()
+    else:
+        # Initialize default column
+        default_colname = feature_col.name + '_default'
+        seen_vals = {default_colname: []}
+        for val in list_values:
+            seen_vals[feature_col.name + '_' + val] = []
     idx = 0
     prefix = feature_col.name
     for vals in feature_col:
         for val in vals:
             val_name = prefix + '_' + val
-            if val_name not in seen_vals:
+            if val_name not in seen_vals and list_values is None:
                 seen_vals[val_name] = ([0] * idx) + [1]
             else:
+                if val_name not in seen_vals:
+                    val_name = default_colname
                 for i in range(idx - len(seen_vals[val_name])):
                     seen_vals[val_name].append(0)
-                seen_vals[val_name].append(1)
+                if len(seen_vals[val_name]) - 1 < idx:
+                    seen_vals[val_name].append(1)
         idx += 1
+    # Fill out remaining zeros
     for k,v in seen_vals.items():
         for _ in range(idx - len(v)):
             v.append(0)
     return pd.DataFrame(seen_vals)
-
 
 def one_hot_encode_list_cols(df, columns=[]):
     """Create one-hot encoded features and remove original
